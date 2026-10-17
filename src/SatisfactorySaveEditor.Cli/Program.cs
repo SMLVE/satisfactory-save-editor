@@ -3,6 +3,7 @@ using SatisfactorySaveEditor.Core;
 using SatisfactorySaveEditor.Core.Compression;
 using SatisfactorySaveEditor.Core.IO;
 using SatisfactorySaveEditor.Core.Model;
+using SatisfactorySaveEditor.Core.Properties;
 
 if (args.Length < 2)
 {
@@ -44,6 +45,65 @@ switch (args[0])
         return 0;
     }
 
+    case "stats":
+    {
+        var save = SaveFile.Load(path);
+        var objects = save.Body.AllObjects.ToList();
+        var withData = objects.Where(o => o.IsParsed || o.RawData.Length > 0).ToList();
+        Console.WriteLine($"Objects with data : {withData.Count}");
+        Console.WriteLine($"Parsed            : {withData.Count(o => o.IsParsed)}");
+        foreach (var g in withData.Where(o => !o.IsParsed).GroupBy(o => (o.ClassName, o.ParseError)).OrderByDescending(g => g.Count()).Take(15))
+            Console.WriteLine($"  UNPARSED {g.Count(),6}  {g.Key.ClassName}: {g.Key.ParseError}");
+
+        var values = objects.Where(o => o.IsParsed).SelectMany(o => PropertyWalker.Descendants(o.Properties)).ToList();
+        Console.WriteLine($"Values            : {values.Count}");
+        var raws = values.OfType<RawValue>().ToList();
+        Console.WriteLine($"Raw values        : {raws.Count}");
+        foreach (var g in raws.GroupBy(r => r.Reason).OrderByDescending(g => g.Count()).Take(20))
+            Console.WriteLine($"  {g.Count(),6}  {g.Key}");
+        var rawStructs = values.OfType<RawStruct>().ToList();
+        Console.WriteLine($"Raw structs       : {rawStructs.Count}");
+        foreach (var g in rawStructs.GroupBy(r => r.StructName).OrderByDescending(g => g.Count()).Take(20))
+            Console.WriteLine($"  {g.Count(),6}  {g.Key}");
+        var stateful = values.OfType<InventoryItemStruct>().Where(i => i.HasState != 0).ToList();
+        Console.WriteLine($"Items with state  : {stateful.Count}");
+        foreach (var i in stateful.Take(3))
+            Console.WriteLine($"  {i.ItemClass} {i.StateType}: {(i.State is null ? $"RAW [{i.StateData.Length}]" : string.Join(", ", i.State))}");
+        var trailing = objects.Where(o => o.IsParsed && o.TrailingData.Length > 0).ToList();
+        Console.WriteLine($"Objects with trailing data: {trailing.Count}");
+        foreach (var g in trailing.GroupBy(o => o.ClassName).OrderByDescending(g => g.Count()).Take(15))
+            Console.WriteLine($"  {g.Count(),6}  {g.Key} (avg {g.Average(o => o.TrailingData.Length):F0} bytes)");
+        return 0;
+    }
+
+    case "dump":
+    {
+        // dump <save> <class-or-instance-substring> [max objects]
+        var save = SaveFile.Load(path);
+        var filter = args.Length > 2 ? args[2] : "";
+        int max = args.Length > 3 ? int.Parse(args[3]) : 3;
+        foreach (var o in save.Body.AllObjects.Where(o => (o.TypePath ?? "").Contains(filter) || (o.InstanceName ?? "").Contains(filter)).Take(max))
+        {
+            Console.WriteLine($"{o.TypePath}  {o.InstanceName}  (v{o.ObjectSaveVersion}{(o.UsesLegacyTags ? ", legacy tags" : "")})");
+            if (o is ActorObject a)
+                Console.WriteLine($"  transform: pos {a.Position} rot {a.Rotation} scale {a.Scale}; parent {a.Parent}; {a.Components.Count} components");
+            foreach (var p in o.Properties)
+                DumpProperty(p.Name, p.Value, "  ");
+            if (o.TrailingData.Length > 0)
+                Console.WriteLine($"  trailing [{o.TrailingData.Length}]: {Convert.ToHexString(o.TrailingData.AsSpan(0, Math.Min(64, o.TrailingData.Length)))}");
+        }
+        return 0;
+    }
+
+    case "raw-structs":
+    {
+        var save = SaveFile.Load(path);
+        foreach (var o in save.Body.AllObjects.Where(o => o.IsParsed))
+            foreach (var s in PropertyWalker.Descendants(o.Properties).OfType<RawStruct>())
+                Console.WriteLine($"{o.ClassName} {s.StructName} [{s.Bytes.Length}]: {Convert.ToHexString(s.Bytes)}");
+        return 0;
+    }
+
     case "decompress":
     {
         var reader = new SaveReader(File.ReadAllBytes(path));
@@ -77,6 +137,34 @@ switch (args[0])
     default:
         Console.Error.WriteLine($"Unknown command '{args[0]}'.");
         return 1;
+}
+
+static void DumpProperty(string? name, PropertyValue value, string indent)
+{
+    const int maxElements = 4;
+    switch (value)
+    {
+        case PropertyListStruct s:
+            Console.WriteLine($"{indent}{name}: {s.StructName}");
+            foreach (var p in s.Properties)
+                DumpProperty(p.Name, p.Value, indent + "  ");
+            break;
+        case ArrayValue a:
+            Console.WriteLine($"{indent}{name}: {a}");
+            for (int i = 0; i < Math.Min(maxElements, a.Elements.Count); i++)
+                DumpProperty($"[{i}]", a.Elements[i], indent + "  ");
+            if (a.Elements.Count > maxElements)
+                Console.WriteLine($"{indent}  ... {a.Elements.Count - maxElements} more");
+            break;
+        case MapValue m:
+            Console.WriteLine($"{indent}{name}: {m}");
+            foreach (var (k, v) in m.Entries.Take(maxElements))
+                DumpProperty($"[{k}]", v, indent + "  ");
+            break;
+        default:
+            Console.WriteLine($"{indent}{name} = {value}");
+            break;
+    }
 }
 
 static int FirstDifference(byte[] a, byte[] b)
