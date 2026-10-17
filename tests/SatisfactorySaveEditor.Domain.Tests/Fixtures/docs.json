@@ -1,0 +1,48 @@
+[
+  {
+    "NativeClass": "/Script/CoreUObject.Class'/Script/FactoryGame.FGItemDescriptor'",
+    "Classes": [
+      { "ClassName": "Desc_IronPlate_C", "FullName": "", "mDisplayName": "Iron Plate", "mStackSize": "SS_BIG", "mCachedStackSize": "200", "mForm": "RF_SOLID" },
+      { "ClassName": "Desc_Motor_C", "FullName": "BlueprintGeneratedClass /Game/FactoryGame/Resource/Parts/Motor/Desc_Motor.Desc_Motor_C", "mDisplayName": "Motor", "mStackSize": "SS_SMALL", "mForm": "RF_SOLID" },
+      { "ClassName": "Desc_Cement_C", "FullName": "", "mDisplayName": "Concrete", "mStackSize": "SS_MEDIUM", "mCachedStackSize": "100", "mForm": "RF_SOLID" }
+    ]
+  },
+  {
+    "NativeClass": "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildingDescriptor'",
+    "Classes": [
+      { "ClassName": "Desc_SmelterMk1_C", "FullName": "", "mDisplayName": "Smelter", "mStackSize": "SS_MEDIUM", "mForm": "RF_SOLID" }
+    ]
+  },
+  {
+    "NativeClass": "/Script/CoreUObject.Class'/Script/FactoryGame.FGRecipe'",
+    "Classes": [
+      { "ClassName": "Recipe_IronPlate_C", "FullName": "BlueprintGeneratedClass /Game/FactoryGame/Recipes/Constructor/Recipe_IronPlate.Recipe_IronPlate_C", "mDisplayName": "Iron Plate",
+        "mProduct": "((ItemClass=\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Resource/Parts/IronPlate/Desc_IronPlate.Desc_IronPlate_C'\",Amount=2))" },
+      { "ClassName": "Recipe_Concrete_C", "FullName": "BlueprintGeneratedClass /Game/FactoryGame/Recipes/Constructor/Recipe_Concrete.Recipe_Concrete_C", "mDisplayName": "Concrete",
+        "mProduct": "((ItemClass=\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Resource/Parts/Cement/Desc_Cement.Desc_Cement_C'\",Amount=1))" },
+      { "ClassName": "Recipe_IngotSteel_C", "FullName": "BlueprintGeneratedClass /Game/FactoryGame/Recipes/Smelter/Recipe_IngotSteel.Recipe_IngotSteel_C", "mDisplayName": "Steel Ingot" },
+      { "ClassName": "Recipe_SteelBeam_C", "FullName": "BlueprintGeneratedClass /Game/FactoryGame/Recipes/Constructor/Recipe_SteelBeam.Recipe_SteelBeam_C", "mDisplayName": "Steel Beam" }
+    ]
+  },
+  {
+    "NativeClass": "/Script/CoreUObject.Class'/Script/FactoryGame.FGSchematic'",
+    "Classes": [
+      { "ClassName": "Schematic_3-4_C", "FullName": "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Progression/Schematic_3-4.Schematic_3-4_C",
+        "mType": "EST_Milestone", "mDisplayName": "Basic Steel Production", "mTechTier": "3",
+        "mUnlocks": [
+          { "Class": "BP_UnlockRecipe_C", "mRecipes": "(\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Recipes/Smelter/Recipe_IngotSteel.Recipe_IngotSteel_C'\",\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Recipes/Constructor/Recipe_SteelBeam.Recipe_SteelBeam_C'\")" },
+          { "Class": "BP_UnlockInfoOnly_C" }
+        ] },
+      { "ClassName": "Schematic_Test_Upgrades_C", "FullName": "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Test/Schematic_Test_Upgrades.Schematic_Test_Upgrades_C",
+        "mType": "EST_Milestone", "mDisplayName": "Test Upgrades", "mTechTier": "1",
+        "mUnlocks": [
+          { "Class": "BP_UnlockInventorySlot_C", "mNumInventorySlotsToUnlock": "3" },
+          { "Class": "BP_UnlockArmEquipmentSlot_C", "mNumArmEquipmentSlotsToUnlock": "1" },
+          { "Class": "BP_UnlockMap_C" },
+          { "Class": "BP_UnlockGiveItem_C", "mItemsToGive": "((ItemClass=\"/Script/Engine.BlueprintGeneratedClass'/Game/FactoryGame/Resource/Parts/Motor/Desc_Motor.Desc_Motor_C'\",Amount=10))" }
+        ] },
+      { "ClassName": "Schematic_Tutorial1_C", "FullName": "BlueprintGeneratedClass /Game/FactoryGame/Schematics/Tutorial/Schematic_Tutorial1.Schematic_Tutorial1_C",
+        "mType": "EST_Tutorial", "mDisplayName": "HUB Upgrade 1", "mTechTier": "0", "mUnlocks": [] }
+    ]
+  }
+]

@@ -4,6 +4,8 @@ using SatisfactorySaveEditor.Core.Compression;
 using SatisfactorySaveEditor.Core.IO;
 using SatisfactorySaveEditor.Core.Model;
 using SatisfactorySaveEditor.Core.Properties;
+using SatisfactorySaveEditor.Domain;
+using SatisfactorySaveEditor.Domain.GameData;
 
 if (args.Length < 2)
 {
@@ -88,10 +90,78 @@ switch (args[0])
             if (o is ActorObject a)
                 Console.WriteLine($"  transform: pos {a.Position} rot {a.Rotation} scale {a.Scale}; parent {a.Parent}; {a.Components.Count} components");
             foreach (var p in o.Properties)
-                DumpProperty(p.Name, p.Value, "  ");
+                DumpProperty($"{p.Name}{(p.Tag.ArrayIndex != 0 ? $"[{p.Tag.ArrayIndex}]" : "")} ({p.Type})", p.Value, "  ");
             if (o.TrailingData.Length > 0)
                 Console.WriteLine($"  trailing [{o.TrailingData.Length}]: {Convert.ToHexString(o.TrailingData.AsSpan(0, Math.Min(64, o.TrailingData.Length)))}");
         }
+        return 0;
+    }
+
+    case "classes":
+    {
+        var save = SaveFile.Load(path);
+        var filter = args.Length > 2 ? args[2] : "";
+        foreach (var g in save.Body.AllObjects.Where(o => (o.TypePath ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase))
+                     .GroupBy(o => o.TypePath).OrderBy(g => g.Key))
+            Console.WriteLine($"{g.Count(),7}  {g.Key}");
+        return 0;
+    }
+
+    case "players":
+    {
+        var editor = new SaveEditor(SaveFile.Load(path), LoadGameData());
+        foreach (var player in editor.Players.All)
+        {
+            Console.WriteLine($"{player.Name}  (state {player.State.InstanceName})");
+            if (player.Pawn is null)
+            {
+                Console.WriteLine("  no character");
+                continue;
+            }
+            Console.WriteLine($"  position {player.Position}, health {player.Health}");
+            foreach (var slot in player.Inventory.Slots.Where(s => !s.IsEmpty))
+                Console.WriteLine($"  [{slot.Index,2}] {slot.Count,5} x {slot.DisplayName}{(slot.HasState ? " (state)" : "")}");
+            foreach (var (name, inventory) in player.EquipmentSlots)
+                Console.WriteLine($"  {name}: {string.Join(", ", inventory.Slots.Where(s => !s.IsEmpty).Select(s => s.DisplayName).DefaultIfEmpty("(empty)"))}");
+        }
+        return 0;
+    }
+
+    case "progression":
+    {
+        var gameData = LoadGameData() ?? throw new InvalidOperationException("Game data not found.");
+        Console.WriteLine($"Game data: {gameData.Items.Count} items ({gameData.Items.Values.Count(i => i.ClassPath is null)} without path), " +
+                          $"{gameData.Recipes.Count} recipes, {gameData.Schematics.Count} schematics");
+        var editor = new SaveEditor(SaveFile.Load(path), gameData);
+        var purchased = editor.Progression.PurchasedSchematics;
+        Console.WriteLine($"Purchased schematics: {purchased.Count}, recipes: {editor.Progression.AvailableRecipes.Count}, " +
+                          $"inventory slots: {editor.Progression.InventorySlots}, hand slots: {editor.Progression.ArmEquipmentSlots}");
+        foreach (var g in purchased.Select(p => gameData.FindSchematic(p)).GroupBy(s => s?.Type ?? "(unknown)"))
+            Console.WriteLine($"  {g.Key,-18} {g.Count(),4}  e.g. {string.Join(", ", g.Take(3).Select(s => s?.DisplayName))}");
+        return 0;
+    }
+
+    case "unlock":
+    {
+        // unlock <save> <milestones|mam|alternates|shop|SchematicClassName> <output.sav>
+        if (args.Length < 4)
+            throw new ArgumentException("Usage: unlock <save> <milestones|mam|alternates|shop|SchematicClassName> <output.sav>");
+        var gameData = LoadGameData() ?? throw new InvalidOperationException("Game data not found.");
+        var editor = new SaveEditor(SaveFile.Load(path), gameData);
+        var results = args[2] switch
+        {
+            "milestones" => editor.Progression.UnlockWhere(s => s.IsMilestone),
+            "mam" => editor.Progression.UnlockWhere(s => s.IsMam),
+            "alternates" => editor.Progression.UnlockWhere(s => s.IsAlternate),
+            "shop" => editor.Progression.UnlockWhere(s => s.IsShop),
+            var name => [editor.Progression.Unlock(name)],
+        };
+        foreach (var r in results)
+            Console.WriteLine($"{r.Schematic.DisplayName}: {(r.AlreadyPurchased ? "already purchased" : string.Join(", ", r.Applied.DefaultIfEmpty("-")))}");
+        foreach (var g in results.SelectMany(r => r.Skipped).GroupBy(k => k))
+            Console.WriteLine($"  skipped {g.Count(),3} x {g.Key}");
+        editor.Save.Save(args[3]);
+        Console.WriteLine($"Unlocked {results.Count(r => !r.AlreadyPurchased)} schematics; wrote {args[3]}");
         return 0;
     }
 
@@ -137,6 +207,12 @@ switch (args[0])
     default:
         Console.Error.WriteLine($"Unknown command '{args[0]}'.");
         return 1;
+}
+
+static GameData? LoadGameData()
+{
+    var docs = Environment.GetEnvironmentVariable("SSE_DOCS") ?? GameDataLocator.FindDocsJson();
+    return docs is null ? null : GameData.Load(docs);
 }
 
 static void DumpProperty(string? name, PropertyValue value, string indent)

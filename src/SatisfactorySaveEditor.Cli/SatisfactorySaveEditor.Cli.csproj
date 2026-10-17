@@ -2,6 +2,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\SatisfactorySaveEditor.Core\SatisfactorySaveEditor.Core.csproj" />
+      <ProjectReference Include="..\SatisfactorySaveEditor.Domain\SatisfactorySaveEditor.Domain.csproj" />
     </ItemGroup>
 
     <PropertyGroup>
