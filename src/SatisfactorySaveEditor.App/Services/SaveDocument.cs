@@ -15,8 +15,11 @@ public sealed class SaveDocument
 
     public string Path { get; private set; }
     public SaveFile Save { get; }
-    public SaveEditor Editor { get; }
+    public SaveEditor Editor { get; private set; }
     public bool IsDirty { get; private set; }
+
+    /// <summary>Recreates the domain editor with newly loaded game data (the save itself is unchanged).</summary>
+    public void AttachGameData(Domain.GameData.GameData? gameData) => Editor = new SaveEditor(Save, gameData);
 
     public string FileName => System.IO.Path.GetFileName(Path);
 

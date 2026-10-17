@@ -2,6 +2,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SatisfactorySaveEditor.App.Services;
 using SatisfactorySaveEditor.App.ViewModels.Explorer;
+using SatisfactorySaveEditor.App.ViewModels.Players;
+using SatisfactorySaveEditor.App.ViewModels.Progression;
 using SatisfactorySaveEditor.Core;
 
 namespace SatisfactorySaveEditor.App.ViewModels;
@@ -23,6 +25,31 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private SaveDocument? _document;
 
     [ObservableProperty] private ExplorerViewModel? _explorer;
+    [ObservableProperty] private PlayersViewModel? _players;
+    [ObservableProperty] private ProgressionViewModel? _progression;
+
+    /// <summary>Tab order in the main window: Players, Progression, Explorer.</summary>
+    [ObservableProperty] private int _selectedTab;
+
+    partial void OnSelectedTabChanged(int value)
+    {
+        if (Document is null)
+            return;
+        // Refresh the activated tab so it reflects edits made in the other tabs.
+        switch (value)
+        {
+            case 0: Players = new PlayersViewModel(Document, Players?.SelectedPlayer?.Name); break;
+            case 1: Progression?.Refresh(); break;
+            case 2: Explorer?.RefreshSelection(); break;
+        }
+    }
+
+    private void BuildTabs(SaveDocument doc)
+    {
+        Players = new PlayersViewModel(doc);
+        Progression = new ProgressionViewModel(doc);
+        Explorer ??= new ExplorerViewModel(doc);
+    }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenCommand), nameof(SaveCommand), nameof(SaveAsCommand))]
@@ -53,13 +80,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
         await RunBusyAsync($"Loading {Path.GetFileName(path)}…", async () =>
         {
             var doc = await SaveDocument.LoadAsync(path, _gameData);
+            if (doc.Editor.GameData != _gameData.Data)
+                doc.AttachGameData(_gameData.Data); // game data finished loading while the save was loading
             doc.DirtyChanged += (_, _) => OnPropertyChanged(nameof(Title));
             Document = doc;
-            Explorer = new ExplorerViewModel(doc);
+            Explorer = null;
+            BuildTabs(doc);
+            SelectedTab = 0;
             var header = doc.Save.Header;
             int unparsed = doc.Save.Body.AllObjects.Count(o => !o.IsParsed && o.RawData.Length > 0);
             Status = $"{header.SessionName} — {header.PlayTime:d\\.hh\\:mm} played, save version {header.SaveVersion}, " +
-                     $"{Explorer.ObjectCount:N0} objects" + (unparsed > 0 ? $" ({unparsed} unparsed, read-only)" : "");
+                     $"{Explorer!.ObjectCount:N0} objects" + (unparsed > 0 ? $" ({unparsed} unparsed, read-only)" : "");
         });
     }
 
@@ -132,8 +163,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private void UpdateGameDataStatus() =>
+    private void UpdateGameDataStatus()
+    {
         GameDataStatus = $"Game data: {_gameData.Data!.Items.Count} items, {_gameData.Data.Schematics.Count} schematics";
+        // A save opened before game data was available gets it now.
+        if (Document is not null && Document.Editor.GameData != _gameData.Data)
+        {
+            Document.AttachGameData(_gameData.Data);
+            BuildTabs(Document);
+        }
+    }
 
     private async Task RunBusyAsync(string message, Func<Task> work)
     {

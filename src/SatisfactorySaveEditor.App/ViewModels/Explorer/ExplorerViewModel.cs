@@ -91,6 +91,9 @@ public sealed partial class ExplorerViewModel : ObservableObject
             Nodes.Add(new PropertyNodeViewModel(node, null));
     }
 
+    /// <summary>Rebuilds the selected object's tree so it reflects edits made in other tabs.</summary>
+    public void RefreshSelection() => OnSelectedObjectChanged(SelectedObject);
+
     private bool _suppressBoolApply;
 
     partial void OnSelectedNodeChanged(PropertyNodeViewModel? value)

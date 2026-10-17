@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SatisfactorySaveEditor.App.ViewModels.Players"
+             x:Class="SatisfactorySaveEditor.App.Views.PlayersView"
+             x:DataType="vm:PlayersViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="ListBox.slots ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="3" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Width" Value="70" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid ColumnDefinitions="260,4,*" Margin="8">
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Top" Text="Players" Classes="heading" Margin="0,0,0,6" />
+      <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0"
+                 Text="Names are not stored in saves; players are shown by platform id." />
+      <ListBox ItemsSource="{Binding Players}" SelectedItem="{Binding SelectedPlayer}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:PlayerViewModel">
+            <StackPanel Spacing="1">
+              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="11" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+
+    <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+
+    <ContentControl Grid.Column="2" Content="{Binding SelectedPlayer}" Margin="8,0,0,0">
+      <ContentControl.ContentTemplate>
+        <DataTemplate x:DataType="vm:PlayerViewModel">
+          <Panel>
+            <TextBlock Text="This player has no character in the save." Classes="muted"
+                       IsVisible="{Binding !HasPawn}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+            <Grid ColumnDefinitions="*,300" RowDefinitions="Auto,Auto,*" IsVisible="{Binding HasPawn}">
+              <!-- Character -->
+              <StackPanel Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,12">
+                <TextBlock Text="{Binding Name}" Classes="heading" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="Health" Classes="label" />
+                  <TextBox Text="{Binding HealthText}" Width="90" />
+                  <Button Content="Apply" Command="{Binding ApplyHealthCommand}" />
+                  <TextBlock Text="0–100" Classes="muted" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="Position" Classes="label" />
+                  <TextBox Text="{Binding PositionX}" Width="110" Watermark="X" />
+                  <TextBox Text="{Binding PositionY}" Width="110" Watermark="Y" />
+                  <TextBox Text="{Binding PositionZ}" Width="110" Watermark="Z" />
+                  <Button Content="Apply" Command="{Binding ApplyPositionCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding Message}" TextWrapping="Wrap"
+                           Classes.error="{Binding MessageIsError}"
+                           IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              </StackPanel>
+
+              <!-- Inventory -->
+              <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,6">
+                <ComboBox ItemsSource="{Binding Inventories}" SelectedItem="{Binding SelectedInventory}" MinWidth="220" />
+                <Button Content="Fill all stacks" Command="{Binding FillStacksCommand}" />
+              </StackPanel>
+              <ListBox Grid.Row="2" Classes="slots" ItemsSource="{Binding Slots}" SelectedItem="{Binding SelectedSlot}">
+                <ListBox.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:SlotViewModel">
+                    <Border Width="128" Height="64" Padding="6" CornerRadius="4" BorderThickness="1"
+                            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+                      <Grid RowDefinitions="Auto,*,Auto">
+                        <TextBlock Text="{Binding Number}" Classes="muted" FontSize="10" />
+                        <TextBlock Grid.Row="1" Text="{Binding Name}" FontSize="12" TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis" Classes.muted="{Binding IsEmpty}" />
+                        <TextBlock Grid.Row="2" Text="{Binding CountText}" FontSize="12" FontWeight="SemiBold"
+                                   HorizontalAlignment="Right" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <!-- Slot editor -->
+              <StackPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Spacing="8" Margin="12,0,0,0">
+                <TextBlock Text="Slot" Classes="heading" />
+                <TextBlock Text="Select a slot." Classes="muted" IsVisible="{Binding !HasSelectedSlot}" />
+                <StackPanel Spacing="8" IsVisible="{Binding HasSelectedSlot}">
+                  <AutoCompleteBox ItemsSource="{Binding Items}" SelectedItem="{Binding EditItem}"
+                                   FilterMode="Contains" MinimumPrefixLength="1" Watermark="Search items…" />
+                  <TextBlock Text="{Binding StackHint}" Classes="muted" FontSize="12" />
+                  <NumericUpDown Value="{Binding EditCount}" Minimum="1" Maximum="{Binding MaxCount}"
+                                 Increment="1" FormatString="0" />
+                  <CheckBox Content="Allow over-stacking" IsChecked="{Binding AllowOverstack}" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Set slot" Command="{Binding SetSlotCommand}" />
+                    <Button Content="Clear slot" Command="{Binding ClearSlotCommand}" />
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+          </Panel>
+        </DataTemplate>
+      </ContentControl.ContentTemplate>
+    </ContentControl>
+  </Grid>
+</UserControl>

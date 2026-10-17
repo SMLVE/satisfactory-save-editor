@@ -45,7 +45,13 @@
         <Button Content="Open save…" Command="{Binding OpenCommand}" HorizontalAlignment="Center" />
       </StackPanel>
 
-      <TabControl IsVisible="{Binding HasDocument}" Padding="0">
+      <TabControl IsVisible="{Binding HasDocument}" Padding="0" SelectedIndex="{Binding SelectedTab}">
+        <TabItem Header="Players">
+          <views:PlayersView DataContext="{Binding Players}" />
+        </TabItem>
+        <TabItem Header="Progression">
+          <views:ProgressionView DataContext="{Binding Progression}" />
+        </TabItem>
         <TabItem Header="Explorer">
           <views:ExplorerView DataContext="{Binding Explorer}" />
         </TabItem>
