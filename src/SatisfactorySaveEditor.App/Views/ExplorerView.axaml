@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SatisfactorySaveEditor.App.ViewModels.Explorer"
+             x:Class="SatisfactorySaveEditor.App.Views.ExplorerView"
+             x:DataType="vm:ExplorerViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TreeViewItem" x:DataType="vm:PropertyNodeViewModel">
+      <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid ColumnDefinitions="340,4,*,4,340" Margin="8">
+
+    <!-- Object list -->
+    <DockPanel>
+      <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,6">
+        <TextBox Text="{Binding SearchText}" Watermark="Search instance or class…" />
+        <ComboBox ItemsSource="{Binding ClassFilters}" SelectedItem="{Binding SelectedClass}" HorizontalAlignment="Stretch" />
+        <TextBlock Text="{Binding ListSummary}" Classes="muted" FontSize="12" />
+      </StackPanel>
+      <ListBox ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObject}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ObjectItem">
+            <StackPanel Spacing="1">
+              <TextBlock Text="{Binding ShortName}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding ClassName}" Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+
+    <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+
+    <!-- Property tree -->
+    <Panel Grid.Column="2">
+      <TextBlock Text="Select an object to see its properties." Classes="muted"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 IsVisible="{Binding SelectedObject, Converter={x:Static ObjectConverters.IsNull}}" />
+      <TreeView ItemsSource="{Binding Nodes}" SelectedItem="{Binding SelectedNode}"
+                IsVisible="{Binding SelectedObject, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:PropertyNodeViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding ValueText}" MaxWidth="520" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding TypeName}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+    </Panel>
+
+    <GridSplitter Grid.Column="3" ResizeDirection="Columns" />
+
+    <!-- Editor -->
+    <ScrollViewer Grid.Column="4">
+      <StackPanel Spacing="10" Margin="8,0,0,0">
+        <TextBlock Text="Selected value" Classes="heading" />
+        <TextBlock Text="Select a property in the tree." Classes="muted" TextWrapping="Wrap"
+                   IsVisible="{Binding !HasSelectedNode}" />
+
+        <StackPanel Spacing="10" IsVisible="{Binding HasSelectedNode}">
+          <StackPanel Spacing="2">
+            <TextBlock Text="{Binding SelectedNode.Name, FallbackValue=''}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding SelectedNode.TypeName, FallbackValue=''}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+          </StackPanel>
+
+          <StackPanel Spacing="6" IsVisible="{Binding CanEditText}">
+            <TextBox Text="{Binding EditText}" AcceptsReturn="False" TextWrapping="Wrap">
+              <TextBox.KeyBindings>
+                <KeyBinding Gesture="Enter" Command="{Binding ApplyCommand}" />
+              </TextBox.KeyBindings>
+            </TextBox>
+            <Button Content="Apply" Command="{Binding ApplyCommand}" HorizontalAlignment="Right" />
+          </StackPanel>
+
+          <CheckBox Content="Value" IsChecked="{Binding EditBool}" IsVisible="{Binding CanEditBool}" />
+
+          <TextBlock Text="{Binding EditError}" Classes="error" TextWrapping="Wrap"
+                     IsVisible="{Binding EditError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+          <SelectableTextBlock Text="{Binding SelectedNode.ValueText, FallbackValue=''}" TextWrapping="Wrap"
+                               IsVisible="{Binding !CanEditText}" FontFamily="Consolas,Menlo,monospace" FontSize="12" />
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Add element" Command="{Binding AddElementCommand}" />
+            <Button Content="Remove element" Command="{Binding RemoveElementCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

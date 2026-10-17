@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SatisfactorySaveEditor.App.ViewModels"
+        xmlns:views="using:SatisfactorySaveEditor.App.Views"
+        x:Class="SatisfactorySaveEditor.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Title}"
+        Width="1400" Height="860" MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterScreen">
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}" />
+  </Window.KeyBindings>
+
+  <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem Header="_Open…" Command="{Binding OpenCommand}" InputGesture="Ctrl+O" />
+        <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S" />
+        <MenuItem Header="Save _As…" Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S" />
+        <Separator />
+        <MenuItem Header="_Locate game data…" Command="{Binding LocateGameDataCommand}" />
+        <Separator />
+        <MenuItem Header="E_xit" Click="OnExitClick" />
+      </MenuItem>
+    </Menu>
+
+    <Border DockPanel.Dock="Bottom" Padding="10,4" BorderThickness="0,1,0,0"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBlock Text="{Binding Status}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <ProgressBar Grid.Column="1" IsIndeterminate="True" Width="120" Margin="12,0"
+                     IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2" Text="{Binding GameDataStatus}" Classes="muted" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <Panel>
+      <StackPanel IsVisible="{Binding !HasDocument}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+        <TextBlock Text="Satisfactory Save Editor" Classes="heading" HorizontalAlignment="Center" />
+        <TextBlock Text="Open a .sav file to inspect and edit it. A backup is made every time you save."
+                   Classes="muted" HorizontalAlignment="Center" />
+        <Button Content="Open save…" Command="{Binding OpenCommand}" HorizontalAlignment="Center" />
+      </StackPanel>
+
+      <TabControl IsVisible="{Binding HasDocument}" Padding="0">
+        <TabItem Header="Explorer">
+          <views:ExplorerView DataContext="{Binding Explorer}" />
+        </TabItem>
+      </TabControl>
+    </Panel>
+  </DockPanel>
+</Window>
