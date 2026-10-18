@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SatisfactorySaveEditor.App.ViewModels.Players"
+             xmlns:views="using:SatisfactorySaveEditor.App.Views"
+             x:Class="SatisfactorySaveEditor.App.Views.PlayerView"
+             x:DataType="vm:PlayerViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.label">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Width" Value="70" />
+    </Style>
+  </UserControl.Styles>
+
+  <Panel>
+    <TextBlock Text="This player has no character in the save." Classes="muted"
+               IsVisible="{Binding !HasPawn}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+    <DockPanel IsVisible="{Binding HasPawn}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+        <TextBlock Text="{Binding Name}" Classes="heading" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="Health" Classes="label" />
+          <TextBox Text="{Binding HealthText}" Width="90" />
+          <Button Content="Apply" Command="{Binding ApplyHealthCommand}" />
+          <TextBlock Text="0–100" Classes="muted" VerticalAlignment="Center" />
+        </StackPanel>
+        <WrapPanel Orientation="Horizontal">
+          <TextBlock Text="Position" Classes="label" Margin="0,0,8,6" />
+          <TextBox Text="{Binding PositionX}" Width="110" Watermark="X" Margin="0,0,8,6" />
+          <TextBox Text="{Binding PositionY}" Width="110" Watermark="Y" Margin="0,0,8,6" />
+          <TextBox Text="{Binding PositionZ}" Width="110" Watermark="Z" Margin="0,0,8,6" />
+          <Button Content="Apply" Command="{Binding ApplyPositionCommand}" Margin="0,0,0,6" />
+        </WrapPanel>
+        <TextBlock Text="{Binding Message}" TextWrapping="Wrap"
+                   Classes.error="{Binding MessageIsError}"
+                   IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      </StackPanel>
+
+      <views:InventoryEditorView DataContext="{Binding Inventory}" />
+    </DockPanel>
+  </Panel>
+</UserControl>

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using SatisfactorySaveEditor.App.Services;
 using SatisfactorySaveEditor.App.ViewModels.Containers;
 using SatisfactorySaveEditor.App.ViewModels.Explorer;
+using SatisfactorySaveEditor.App.ViewModels.Map;
 using SatisfactorySaveEditor.App.ViewModels.Players;
 using SatisfactorySaveEditor.App.ViewModels.Progression;
 using SatisfactorySaveEditor.Core;
@@ -27,12 +28,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty] private ExplorerViewModel? _explorer;
     [ObservableProperty] private PlayersViewModel? _players;
+    [ObservableProperty] private MapViewModel? _map;
     [ObservableProperty] private ContainersViewModel? _containers;
     [ObservableProperty] private ProgressionViewModel? _progression;
 
-    private const int PlayersTab = 0, ContainersTab = 1, ProgressionTab = 2, ExplorerTab = 3;
+    private const int PlayersTab = 0, MapTab = 1, ContainersTab = 2, ProgressionTab = 3, ExplorerTab = 4;
 
-    /// <summary>Selected tab: Players, Containers, Progression or Explorer.</summary>
+    /// <summary>Selected tab: Players, Map, Containers, Progression or Explorer.</summary>
     [ObservableProperty] private int _selectedTab;
 
     partial void OnSelectedTabChanged(int value)
@@ -43,6 +45,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         switch (value)
         {
             case PlayersTab: Players = new PlayersViewModel(Document, Players?.SelectedPlayer?.Name); break;
+            case MapTab: Map?.RefreshSelection(); break;
             case ContainersTab: Containers = new ContainersViewModel(Document); break;
             case ProgressionTab: Progression?.Refresh(); break;
             case ExplorerTab: Explorer?.RefreshSelection(); break;
@@ -52,6 +55,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private void BuildTabs(SaveDocument doc)
     {
         Players = new PlayersViewModel(doc);
+        Map = new MapViewModel(doc);
         Containers = new ContainersViewModel(doc);
         Progression = new ProgressionViewModel(doc);
         Explorer ??= new ExplorerViewModel(doc);

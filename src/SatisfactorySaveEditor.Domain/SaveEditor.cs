@@ -1,6 +1,7 @@
 using SatisfactorySaveEditor.Core;
 using SatisfactorySaveEditor.Core.Model;
 using SatisfactorySaveEditor.Domain.Inventory;
+using SatisfactorySaveEditor.Domain.Map;
 using SatisfactorySaveEditor.Domain.Players;
 using SatisfactorySaveEditor.Domain.Progression;
 
@@ -21,6 +22,7 @@ public sealed class SaveEditor
         Players = new PlayerService(this);
         Progression = new ProgressionService(this);
         Containers = new ContainerService(this);
+        Map = new MapService(this);
     }
 
     public SaveFile Save { get; }
@@ -28,6 +30,7 @@ public sealed class SaveEditor
     public PlayerService Players { get; }
     public ProgressionService Progression { get; }
     public ContainerService Containers { get; }
+    public MapService Map { get; }
 
     public GameData.GameData RequireGameData() =>
         GameData ?? throw new InvalidOperationException("Game data is not loaded. Locate the game's CommunityResources/Docs JSON first.");

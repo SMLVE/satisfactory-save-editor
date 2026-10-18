@@ -1,0 +1,302 @@
+using System.Globalization;
+using System.Numerics;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Media;
+using SatisfactorySaveEditor.Domain.Map;
+
+namespace SatisfactorySaveEditor.App.Controls;
+
+/// <summary>
+/// Top-down map of save markers with mouse-wheel zoom (around the cursor), drag to pan and click to select.
+/// World X maps to screen X and world Y to screen Y; units are centimetres. Markers outside the view are
+/// culled and dense layers draw at most one marker per screen pixel cell, so tens of thousands stay fast.
+/// </summary>
+public sealed class MapControl : Control
+{
+    public static readonly StyledProperty<IReadOnlyList<MapMarker>?> MarkersProperty =
+        AvaloniaProperty.Register<MapControl, IReadOnlyList<MapMarker>?>(nameof(Markers));
+
+    public static readonly StyledProperty<MapMarker?> SelectedMarkerProperty =
+        AvaloniaProperty.Register<MapControl, MapMarker?>(nameof(SelectedMarker),
+            defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
+
+    private const double ClickRadius = 9;
+    private const double MinScale = 1e-5, MaxScale = 0.2; // pixels per centimetre
+
+    private static readonly IBrush Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x23, 0x2A));
+    private static readonly IPen GridPen = new Pen(new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)), 1);
+    private static readonly IPen MarkerOutline = new Pen(Brushes.White, 1.5);
+    private static readonly IPen SelectionPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 2.5);
+    private static readonly IBrush LabelBrush = Brushes.White;
+    private static readonly IBrush LabelBackground = new SolidColorBrush(Color.FromArgb(0xC0, 0x10, 0x10, 0x10));
+    private static readonly Typeface LabelFace = new(FontFamily.Default);
+
+    private static readonly Dictionary<MapMarkerKind, (IBrush Brush, double Size, bool Round)> MarkerStyles = new()
+    {
+        [MapMarkerKind.Building] = (new SolidColorBrush(Color.FromArgb(0x90, 0x9A, 0xA4, 0xB0)), 2, false),
+        [MapMarkerKind.Logistics] = (new SolidColorBrush(Color.FromRgb(0xC9, 0xA2, 0x27)), 2.5, false),
+        [MapMarkerKind.Machine] = (new SolidColorBrush(Color.FromRgb(0xF0, 0x8A, 0x24)), 3.5, false),
+        [MapMarkerKind.World] = (new SolidColorBrush(Color.FromRgb(0x4C, 0xC3, 0x8A)), 5, true),
+        [MapMarkerKind.Storage] = (new SolidColorBrush(Color.FromRgb(0x3D, 0x9B, 0xF0)), 5.5, false),
+        [MapMarkerKind.Vehicle] = (new SolidColorBrush(Color.FromRgb(0xB0, 0x7C, 0xF0)), 7, true),
+        [MapMarkerKind.Player] = (new SolidColorBrush(Color.FromRgb(0xE8, 0x3E, 0x3E)), 10, true),
+    };
+
+    public static IBrush BrushFor(MapMarkerKind kind) => MarkerStyles[kind].Brush;
+
+    private double _scale = 0.001;
+    private Point _origin; // screen position of world (0, 0)
+    private bool _fitted;
+    private Point? _pressPoint;
+    private Point _lastPoint;
+    private bool _dragging;
+    private MapMarker? _hover;
+
+    static MapControl()
+    {
+        AffectsRender<MapControl>(MarkersProperty, SelectedMarkerProperty);
+        FocusableProperty.OverrideDefaultValue<MapControl>(true);
+        ClipToBoundsProperty.OverrideDefaultValue<MapControl>(true);
+    }
+
+    public IReadOnlyList<MapMarker>? Markers
+    {
+        get => GetValue(MarkersProperty);
+        set => SetValue(MarkersProperty, value);
+    }
+
+    public MapMarker? SelectedMarker
+    {
+        get => GetValue(SelectedMarkerProperty);
+        set => SetValue(SelectedMarkerProperty, value);
+    }
+
+    public Point WorldToScreen(Vector3 world) => new(_origin.X + world.X * _scale, _origin.Y + world.Y * _scale);
+
+    public Vector2 ScreenToWorld(Point screen) => new((float)((screen.X - _origin.X) / _scale), (float)((screen.Y - _origin.Y) / _scale));
+
+    /// <summary>Zooms and pans so every marker is visible.</summary>
+    public void FitToMarkers()
+    {
+        var markers = Markers;
+        if (markers is not { Count: > 0 } || Bounds.Width < 1 || Bounds.Height < 1)
+            return;
+        float minX = markers.Min(m => m.Position.X), maxX = markers.Max(m => m.Position.X);
+        float minY = markers.Min(m => m.Position.Y), maxY = markers.Max(m => m.Position.Y);
+        double width = Math.Max(maxX - minX, 10_000), height = Math.Max(maxY - minY, 10_000);
+        _scale = Math.Clamp(Math.Min(Bounds.Width / width, Bounds.Height / height) * 0.9, MinScale, MaxScale);
+        double cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        _origin = new Point(Bounds.Width / 2 - cx * _scale, Bounds.Height / 2 - cy * _scale);
+        _fitted = true;
+        InvalidateVisual();
+    }
+
+    /// <summary>Centers the view on a marker without changing the zoom.</summary>
+    public void CenterOn(MapMarker marker)
+    {
+        _origin = new Point(Bounds.Width / 2 - marker.Position.X * _scale, Bounds.Height / 2 - marker.Position.Y * _scale);
+        InvalidateVisual();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == MarkersProperty && !_fitted)
+            FitToMarkers();
+        if (change.Property == BoundsProperty && !_fitted)
+            FitToMarkers();
+    }
+
+    public override void Render(DrawingContext context)
+    {
+        var bounds = new Rect(Bounds.Size);
+        context.FillRectangle(Background, bounds);
+        DrawGrid(context, bounds);
+
+        var markers = Markers;
+        if (markers is null)
+            return;
+
+        var occupied = new HashSet<long>();
+        var labels = new List<(MapMarker Marker, Point At)>();
+        foreach (var marker in markers)
+        {
+            var p = WorldToScreen(marker.Position);
+            if (p.X < -10 || p.Y < -10 || p.X > bounds.Width + 10 || p.Y > bounds.Height + 10)
+                continue;
+            var (brush, size, round) = MarkerStyles[marker.Kind];
+            if (marker.Kind <= MapMarkerKind.Machine)
+            {
+                // Dense layers: one marker per 2×2 pixel cell per kind is visually identical and much cheaper.
+                long cell = ((long)marker.Kind << 42) | ((long)(p.X / 2) << 21) | (long)(p.Y / 2);
+                if (!occupied.Add(cell))
+                    continue;
+            }
+            if (round)
+                context.DrawEllipse(brush, marker.Kind == MapMarkerKind.Player ? MarkerOutline : null, p, size / 2, size / 2);
+            else
+                context.FillRectangle(brush, new Rect(p.X - size / 2, p.Y - size / 2, size, size));
+            if (marker.Kind == MapMarkerKind.Player)
+                labels.Add((marker, p));
+        }
+
+        if (SelectedMarker is { } selected)
+        {
+            var p = WorldToScreen(selected.Position);
+            context.DrawEllipse(null, SelectionPen, p, 9, 9);
+            labels.Add((selected, p));
+        }
+        if (_hover is { } hover && hover != SelectedMarker)
+            labels.Add((hover, WorldToScreen(hover.Position)));
+
+        foreach (var (marker, at) in labels.DistinctBy(l => l.Marker))
+            DrawLabel(context, marker.Label, at);
+        DrawScaleBar(context, bounds);
+    }
+
+    private void DrawGrid(DrawingContext context, Rect bounds)
+    {
+        double spacing = NiceDistance(80 / _scale);
+        var topLeft = ScreenToWorld(new Point(0, 0));
+        var bottomRight = ScreenToWorld(new Point(bounds.Width, bounds.Height));
+        for (double x = Math.Floor(topLeft.X / spacing) * spacing; x <= bottomRight.X; x += spacing)
+        {
+            double sx = _origin.X + x * _scale;
+            context.DrawLine(GridPen, new Point(sx, 0), new Point(sx, bounds.Height));
+        }
+        for (double y = Math.Floor(topLeft.Y / spacing) * spacing; y <= bottomRight.Y; y += spacing)
+        {
+            double sy = _origin.Y + y * _scale;
+            context.DrawLine(GridPen, new Point(0, sy), new Point(bounds.Width, sy));
+        }
+    }
+
+    private void DrawScaleBar(DrawingContext context, Rect bounds)
+    {
+        double distance = NiceDistance(120 / _scale);
+        double length = distance * _scale;
+        var start = new Point(16, bounds.Height - 20);
+        context.DrawLine(MarkerOutline, start, start + new Point(length, 0));
+        context.DrawLine(MarkerOutline, start, start + new Point(0, -6));
+        context.DrawLine(MarkerOutline, start + new Point(length, 0), start + new Point(length, -6));
+        string text = distance >= 100_000 ? $"{distance / 100_000:0.#} km" : $"{distance / 100:0} m";
+        var formatted = Format(text);
+        context.DrawText(formatted, start + new Point(length / 2 - formatted.Width / 2, -22));
+    }
+
+    private static void DrawLabel(DrawingContext context, string text, Point at)
+    {
+        var formatted = Format(text);
+        var origin = new Point(at.X + 9, at.Y - formatted.Height - 4);
+        context.FillRectangle(LabelBackground, new Rect(origin.X - 4, origin.Y - 2, formatted.Width + 8, formatted.Height + 4), 3);
+        context.DrawText(formatted, origin);
+    }
+
+    private static FormattedText Format(string text) =>
+        new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, LabelFace, 12, LabelBrush);
+
+    /// <summary>Rounds a distance (cm) to 1, 2 or 5 × a power of ten.</summary>
+    private static double NiceDistance(double atLeast)
+    {
+        double magnitude = Math.Pow(10, Math.Floor(Math.Log10(Math.Max(atLeast, 1))));
+        foreach (double step in new[] { 1, 2, 5, 10 })
+            if (step * magnitude >= atLeast)
+                return step * magnitude;
+        return 10 * magnitude;
+    }
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        var at = e.GetPosition(this);
+        var world = ScreenToWorld(at);
+        _scale = Math.Clamp(_scale * Math.Pow(1.25, e.Delta.Y), MinScale, MaxScale);
+        _origin = new Point(at.X - world.X * _scale, at.Y - world.Y * _scale);
+        InvalidateVisual();
+        e.Handled = true;
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+        _pressPoint = _lastPoint = e.GetPosition(this);
+        _dragging = false;
+        e.Pointer.Capture(this);
+        Focus();
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        var p = e.GetPosition(this);
+        if (_pressPoint is { } press)
+        {
+            if (!_dragging && Distance(p, press) > 4)
+                _dragging = true;
+            if (_dragging)
+            {
+                _origin += p - _lastPoint;
+                _lastPoint = p;
+                InvalidateVisual();
+            }
+            return;
+        }
+        var hover = HitTest(p);
+        if (hover != _hover)
+        {
+            _hover = hover;
+            InvalidateVisual();
+        }
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        if (_pressPoint is null)
+            return;
+        if (!_dragging)
+            SelectedMarker = HitTest(e.GetPosition(this));
+        _pressPoint = null;
+        _dragging = false;
+        e.Pointer.Capture(null);
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        if (_hover is not null)
+        {
+            _hover = null;
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>The topmost marker within the click radius of <paramref name="screen"/>, preferring higher layers.</summary>
+    public MapMarker? HitTest(Point screen)
+    {
+        var markers = Markers;
+        if (markers is null)
+            return null;
+        MapMarker? best = null;
+        double bestDistance = ClickRadius;
+        for (int i = markers.Count - 1; i >= 0; i--)
+        {
+            var marker = markers[i];
+            if (best is not null && marker.Kind < best.Kind)
+                break; // markers are ordered by layer; lower layers only win if nothing above was in range
+            double d = Distance(WorldToScreen(marker.Position), screen);
+            if (d <= bestDistance)
+            {
+                best = marker;
+                bestDistance = d;
+            }
+        }
+        return best;
+    }
+
+    private static double Distance(Point a, Point b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+}
