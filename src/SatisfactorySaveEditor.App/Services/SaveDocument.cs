@@ -25,6 +25,11 @@ public sealed class SaveDocument
 
     public event EventHandler? DirtyChanged;
 
+    /// <summary>Raised after objects were added to or removed from the save, so views can rebuild.</summary>
+    public event EventHandler? StructureChanged;
+
+    public void NotifyStructureChanged() => StructureChanged?.Invoke(this, EventArgs.Empty);
+
     public static Task<SaveDocument> LoadAsync(string path, GameDataStore gameData) =>
         Task.Run(() => new SaveDocument(path, SaveFile.Load(path), gameData));
 

@@ -14,6 +14,8 @@ public interface IDialogService
     Task<bool?> AskAsync(string title, string message, string yes, string no);
     /// <summary>Shows the list of pending changes and asks whether to write them. Returns true to save.</summary>
     Task<bool> ConfirmSaveAsync(string fileName, IReadOnlyList<string> changes);
+    /// <summary>Shows a message with a list of details and asks for confirmation. Returns true to proceed.</summary>
+    Task<bool> ConfirmListAsync(string title, string message, IReadOnlyList<string> details, string confirmLabel);
 }
 
 public sealed class DialogService(Window owner) : IDialogService
@@ -65,17 +67,17 @@ public sealed class DialogService(Window owner) : IDialogService
     public Task<bool?> AskAsync(string title, string message, string yes, string no) =>
         ShowDialog(title, message, [(yes, true), (no, false), ("Cancel", null)]);
 
-    public async Task<bool> ConfirmSaveAsync(string fileName, IReadOnlyList<string> changes)
+    public Task<bool> ConfirmSaveAsync(string fileName, IReadOnlyList<string> changes)
     {
-        var list = new ListBox
-        {
-            ItemsSource = changes.Select((c, i) => $"{i + 1}. {c}").ToList(),
-            MaxHeight = 360,
-            FontSize = 12,
-        };
         var noun = changes.Count == 1 ? "change" : "changes";
-        return await ShowDialog("Save changes", $"Write {changes.Count} {noun} to {fileName}? A backup of the current file is made first.",
-            [("Save", true), ("Cancel", null)], list, width: 640) == true;
+        return ConfirmListAsync("Save changes", $"Write {changes.Count} {noun} to {fileName}? A backup of the current file is made first.",
+            changes.Select((c, i) => $"{i + 1}. {c}").ToList(), "Save");
+    }
+
+    public async Task<bool> ConfirmListAsync(string title, string message, IReadOnlyList<string> details, string confirmLabel)
+    {
+        var list = new ListBox { ItemsSource = details, MaxHeight = 360, FontSize = 12 };
+        return await ShowDialog(title, message, [(confirmLabel, true), ("Cancel", null)], list, width: 640) == true;
     }
 
     private async Task<IStorageFolder?> StartFolder(string path) =>

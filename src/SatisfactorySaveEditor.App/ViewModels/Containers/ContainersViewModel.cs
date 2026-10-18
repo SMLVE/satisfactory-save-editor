@@ -1,5 +1,6 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using SatisfactorySaveEditor.App.Services;
 using SatisfactorySaveEditor.App.ViewModels.Inventory;
 using SatisfactorySaveEditor.Domain.Inventory;
@@ -32,12 +33,14 @@ public sealed record ContainerRow(Container Container)
 public sealed partial class ContainersViewModel : ObservableObject
 {
     private readonly SaveDocument _document;
+    private readonly IDialogService _dialogs;
     private readonly IReadOnlyList<ItemChoice> _items;
     private readonly List<ContainerRow> _all;
 
-    public ContainersViewModel(SaveDocument document)
+    public ContainersViewModel(SaveDocument document, IDialogService dialogs)
     {
         _document = document;
+        _dialogs = dialogs;
         _items = ItemChoice.From(document.Editor.GameData);
         _all = document.Editor.Containers.All.Select(c => new ContainerRow(c)).ToList();
         Filters =
@@ -60,6 +63,11 @@ public sealed partial class ContainersViewModel : ObservableObject
     [ObservableProperty] private string _summary = "";
     [ObservableProperty] private ContainerRow? _selectedRow;
     [ObservableProperty] private InventoryEditorViewModel? _inventory;
+
+    /// <summary>Deletes the selected container after showing what will be removed. The tab rebuilds afterwards.</summary>
+    [RelayCommand]
+    private Task DeleteSelectedAsync() =>
+        SelectedRow is { } row ? DeleteWorkflow.RunAsync(_document, _dialogs, row.Container.Owner) : Task.CompletedTask;
 
     partial void OnSelectedFilterChanged(CategoryFilter value) => ApplyFilter();
     partial void OnSearchTextChanged(string value) => ApplyFilter();

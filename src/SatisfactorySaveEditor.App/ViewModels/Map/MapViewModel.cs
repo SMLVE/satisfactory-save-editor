@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using SatisfactorySaveEditor.App.Controls;
 using SatisfactorySaveEditor.App.Services;
 using SatisfactorySaveEditor.App.ViewModels.Inventory;
@@ -24,12 +25,14 @@ public sealed partial class MapLayer(MapMarkerKind kind, string label, int count
 public sealed partial class MapViewModel : ObservableObject
 {
     private readonly SaveDocument _document;
+    private readonly IDialogService _dialogs;
     private readonly IReadOnlyList<MapMarker> _all;
     private readonly IReadOnlyList<ItemChoice> _items;
 
-    public MapViewModel(SaveDocument document)
+    public MapViewModel(SaveDocument document, IDialogService dialogs)
     {
         _document = document;
+        _dialogs = dialogs;
         _items = ItemChoice.From(document.Editor.GameData);
         _all = document.Editor.Map.Markers;
         int Count(MapMarkerKind k) => _all.Count(m => m.Kind == k);
@@ -79,6 +82,11 @@ public sealed partial class MapViewModel : ObservableObject
     }
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
+
+    /// <summary>Deletes the selected object after showing what will be removed. The map rebuilds afterwards.</summary>
+    [RelayCommand]
+    private Task DeleteSelectedAsync() =>
+        SelectedMarker is { } marker ? DeleteWorkflow.RunAsync(_document, _dialogs, marker.Actor) : Task.CompletedTask;
 
     /// <summary>
     /// Rebuilds the detail editors so they reflect edits made in other tabs. Markers keep their positions

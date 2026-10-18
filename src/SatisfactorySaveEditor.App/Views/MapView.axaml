@@ -45,7 +45,10 @@
 
       <DockPanel IsVisible="{Binding HasSelection}">
         <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,10" IsVisible="{Binding Player, Converter={x:Static ObjectConverters.IsNull}}">
-          <TextBlock Text="{Binding Title}" Classes="heading" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding Title}" Classes="heading" />
+            <Button Grid.Column="1" Content="Delete…" Command="{Binding DeleteSelectedCommand}" />
+          </Grid>
           <TextBlock Text="{Binding Subtitle}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
           <TextBlock Text="This object has no inventory." Classes="muted" Margin="0,8,0,0" IsVisible="{Binding HasNoInventory}" />
         </StackPanel>

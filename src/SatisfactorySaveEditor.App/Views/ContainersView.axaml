@@ -33,7 +33,10 @@
                  IsVisible="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNull}}" />
       <DockPanel IsVisible="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}">
         <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,10">
-          <TextBlock Text="{Binding SelectedRow.Title, FallbackValue=''}" Classes="heading" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding SelectedRow.Title, FallbackValue=''}" Classes="heading" />
+            <Button Grid.Column="1" Content="Delete…" Command="{Binding DeleteSelectedCommand}" />
+          </Grid>
           <TextBlock Text="{Binding SelectedRow.Detail, FallbackValue=''}" Classes="muted" FontSize="12" />
         </StackPanel>
         <views:InventoryEditorView DataContext="{Binding Inventory}" />

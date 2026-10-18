@@ -179,6 +179,28 @@ switch (args[0])
         return 0;
     }
 
+    case "refs":
+    {
+        // refs <save> <class name>: for the first actor of that class, list who references it or its components.
+        var save = SaveFile.Load(path);
+        var target = save.Body.AllObjects.OfType<ActorObject>().First(o => o.ClassName == args[2]);
+        var owned = save.Body.AllObjects.Where(o => o == target || (o is ComponentObject c && c.ParentActorName == target.InstanceName))
+            .Select(o => o.InstanceName!).ToHashSet();
+        Console.WriteLine($"{target.InstanceName} (placed in level: {target.WasPlacedInLevel}) owns {owned.Count - 1} components");
+        foreach (var o in save.Body.AllObjects.Where(o => o.IsParsed && !owned.Contains(o.InstanceName!)))
+        {
+            var hits = PropertyWalker.Descendants(o.Properties).OfType<ObjectValue>()
+                .Where(v => v.Value.PathName is { } p && owned.Contains(p)).Select(v => v.Value.PathName).ToList();
+            var trailing = System.Text.Encoding.Latin1.GetString(o.TrailingData);
+            hits.AddRange(owned.Where(n => trailing.Contains(n)).Select(n => $"{n} (in trailing data)"));
+            foreach (var h in hits)
+                Console.WriteLine($"  {o.ClassName} {o.InstanceName![(o.InstanceName.LastIndexOf('.') + 1)..]} -> {h![(h.LastIndexOf('.') + 1)..]}");
+        }
+        var levels = save.Body.Levels.Where(l => l.Collectables.Concat(l.Collectables2).Any(c => owned.Contains(c.PathName ?? ""))).Count();
+        Console.WriteLine($"  listed in {levels} level collectable lists");
+        return 0;
+    }
+
     case "raw-structs":
     {
         var save = SaveFile.Load(path);

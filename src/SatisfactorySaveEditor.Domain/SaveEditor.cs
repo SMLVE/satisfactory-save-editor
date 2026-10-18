@@ -1,5 +1,6 @@
 using SatisfactorySaveEditor.Core;
 using SatisfactorySaveEditor.Core.Model;
+using SatisfactorySaveEditor.Domain.Deletion;
 using SatisfactorySaveEditor.Domain.Inventory;
 using SatisfactorySaveEditor.Domain.Map;
 using SatisfactorySaveEditor.Domain.Players;
@@ -23,6 +24,7 @@ public sealed class SaveEditor
         Progression = new ProgressionService(this);
         Containers = new ContainerService(this);
         Map = new MapService(this);
+        Deletion = new DeletionService(this);
     }
 
     public SaveFile Save { get; }
@@ -31,6 +33,10 @@ public sealed class SaveEditor
     public ProgressionService Progression { get; }
     public ContainerService Containers { get; }
     public MapService Map { get; }
+    public DeletionService Deletion { get; }
+
+    /// <summary>Drops the instance-name index after objects were added or removed.</summary>
+    internal void InvalidateIndex() => _byInstanceName = null;
 
     public GameData.GameData RequireGameData() =>
         GameData ?? throw new InvalidOperationException("Game data is not loaded. Locate the game's CommunityResources/Docs JSON first.");

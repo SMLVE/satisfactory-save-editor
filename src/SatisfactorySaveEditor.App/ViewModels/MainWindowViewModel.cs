@@ -46,17 +46,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             case PlayersTab: Players = new PlayersViewModel(Document, Players?.SelectedPlayer?.Name); break;
             case MapTab: Map?.RefreshSelection(); break;
-            case ContainersTab: Containers = new ContainersViewModel(Document); break;
+            case ContainersTab: Containers = new ContainersViewModel(Document, _dialogs); break;
             case ProgressionTab: Progression?.Refresh(); break;
             case ExplorerTab: Explorer?.RefreshSelection(); break;
         }
     }
 
+    /// <summary>Objects were removed: rebuild the views that list objects (the map keeps its zoom and position).</summary>
+    private void OnStructureChanged(SaveDocument doc)
+    {
+        Map = new MapViewModel(doc, _dialogs);
+        Containers = new ContainersViewModel(doc, _dialogs);
+        Explorer = new ExplorerViewModel(doc);
+        Status = $"{Explorer.ObjectCount:N0} objects after the last change (not saved yet)";
+    }
+
     private void BuildTabs(SaveDocument doc)
     {
         Players = new PlayersViewModel(doc);
-        Map = new MapViewModel(doc);
-        Containers = new ContainersViewModel(doc);
+        Map = new MapViewModel(doc, _dialogs);
+        Containers = new ContainersViewModel(doc, _dialogs);
         Progression = new ProgressionViewModel(doc);
         Explorer ??= new ExplorerViewModel(doc);
     }
@@ -93,6 +102,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             if (doc.Editor.GameData != _gameData.Data)
                 doc.AttachGameData(_gameData.Data); // game data finished loading while the save was loading
             doc.DirtyChanged += (_, _) => OnPropertyChanged(nameof(Title));
+            doc.StructureChanged += (_, _) => OnStructureChanged(doc);
             Document = doc;
             Explorer = null;
             BuildTabs(doc);
