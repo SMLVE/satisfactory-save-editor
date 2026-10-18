@@ -20,14 +20,22 @@ public static class DeleteWorkflow
         }
 
         var details = new List<string> { $"Remove {name} and its {plan.ComponentCount} components" };
-        details.AddRange(plan.AlsoDeleted.Select(a => a.Trailing is PowerLineTrailing
-            ? $"Also remove the power line {document.Editor.Power.Resolve(a).Description} ({ShortName(a)})"
-            : $"Also remove {ContainerService.FriendlyClassName(a.ClassName)} ({ShortName(a)}), which is attached to it"));
+        details.AddRange(plan.AlsoDeleted.Select(a => a.Trailing switch
+        {
+            PowerLineTrailing => $"Also remove the power line {document.Editor.Power.Resolve(a).Description} ({ShortName(a)})",
+            ConveyorChainTrailing chain =>
+                $"Also remove its conveyor chain ({chain.Segments.Count} belts, {chain.Items.Count} items on them are lost). " +
+                "The game rebuilds chains for the remaining belts when the save loads.",
+            _ => $"Also remove {ContainerService.FriendlyClassName(a.ClassName)} ({ShortName(a)}), which is attached to it",
+        }));
         details.AddRange(plan.ReferencesToClear.Select(r => $"Unlink {r.Description}"));
         var held = plan.ObjectsToRemove.Where(o => o.IsParsed && o.Properties.Find("mInventoryStacks") is not null)
             .Select(o => document.Editor.OpenInventory(o).Slots.Count(s => !s.IsEmpty)).Sum();
         if (held > 0)
             details.Add($"The {held} item stacks it holds are lost");
+        int onBelt = plan.ObjectsToRemove.Select(o => o.Trailing).OfType<ConveyorItemsTrailing>().Sum(t => t.Items.Count);
+        if (onBelt > 0)
+            details.Add($"The {onBelt} items stored on the belt are lost");
 
         if (!await dialogs.ConfirmListAsync("Delete", $"Delete {name}? This is applied when you save.", details, "Delete"))
             return false;

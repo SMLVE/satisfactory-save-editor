@@ -66,6 +66,16 @@
           </Grid>
           <TextBlock Text="{Binding Subtitle}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
           <TextBlock Text="This object has no inventory." Classes="muted" Margin="0,8,0,0" IsVisible="{Binding HasNoInventory}" />
+          <StackPanel Spacing="2" Margin="0,8,0,0" IsVisible="{Binding IsBelt}">
+            <TextBlock Text="On this belt" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding BeltContents}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Text="{Binding}" FontSize="12" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
           <StackPanel Spacing="2" Margin="0,8,0,0" IsVisible="{Binding HasPowerConnections}">
             <TextBlock Text="Power lines" FontWeight="SemiBold" />
             <ItemsControl ItemsSource="{Binding PowerConnections}">

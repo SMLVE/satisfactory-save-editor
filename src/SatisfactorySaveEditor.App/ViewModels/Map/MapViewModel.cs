@@ -6,6 +6,7 @@ using SatisfactorySaveEditor.App.Controls;
 using SatisfactorySaveEditor.App.Services;
 using SatisfactorySaveEditor.App.ViewModels.Inventory;
 using SatisfactorySaveEditor.App.ViewModels.Players;
+using SatisfactorySaveEditor.Core.Trailing;
 using SatisfactorySaveEditor.Domain.Map;
 using SatisfactorySaveEditor.Domain.Structures;
 
@@ -44,6 +45,7 @@ public sealed partial class MapViewModel : ObservableObject
             new(MapMarkerKind.Vehicle, "Vehicles", Count(MapMarkerKind.Vehicle), true, ApplyFilter),
             new(MapMarkerKind.World, "Crates & drop pods", Count(MapMarkerKind.World), true, ApplyFilter),
             new(MapMarkerKind.Machine, "Machines", Count(MapMarkerKind.Machine), true, ApplyFilter),
+            new(MapMarkerKind.Conveyor, "Belts & pipes", Count(MapMarkerKind.Conveyor), true, ApplyFilter),
             new(MapMarkerKind.Logistics, "Splitters & mergers", Count(MapMarkerKind.Logistics), false, ApplyFilter),
             new(MapMarkerKind.Building, "Other buildings", Count(MapMarkerKind.Building), true, ApplyFilter),
         ];
@@ -83,6 +85,16 @@ public sealed partial class MapViewModel : ObservableObject
 
     public bool HasPowerConnections => PowerConnections.Count > 0;
 
+    /// <summary>Items on the selected belt, e.g. "16 × Coal" (empty for other objects).</summary>
+    public IReadOnlyList<string> BeltContents =>
+        SelectedMarker is { } m && m.Actor.Trailing is ConveyorItemsTrailing
+            ? _document.Editor.Conveyors.ContentsOf(m.Actor)
+                .Select(c => $"{c.Count} × {_document.Editor.GameData?.FindItem(c.ItemClass)?.DisplayName ?? Domain.GameData.GameData.ClassNameOf(c.ItemClass)}")
+                .DefaultIfEmpty("Empty").ToList()
+            : [];
+
+    public bool IsBelt => SelectedMarker?.Actor.Trailing is ConveyorItemsTrailing;
+
     partial void OnShowPowerLinesChanged(bool value) => VisibleLines = value ? _powerLines : [];
 
     private static string Friendly(Core.Model.ActorObject actor) => Domain.Inventory.ContainerService.FriendlyClassName(actor.ClassName);
@@ -93,7 +105,7 @@ public sealed partial class MapViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection), nameof(Title), nameof(Subtitle), nameof(HasNoInventory),
-        nameof(PowerConnections), nameof(HasPowerConnections))]
+        nameof(PowerConnections), nameof(HasPowerConnections), nameof(BeltContents), nameof(IsBelt))]
     private MapMarker? _selectedMarker;
 
     /// <summary>Editor for the selected player (health, position, inventories).</summary>
@@ -102,7 +114,7 @@ public sealed partial class MapViewModel : ObservableObject
     [ObservableProperty] private InventoryEditorViewModel? _inventory;
 
     public bool HasSelection => SelectedMarker is not null;
-    public bool HasNoInventory => SelectedMarker is { Player: null, Container: null };
+    public bool HasNoInventory => SelectedMarker is { Player: null, Container: null } && !IsBelt;
     public string Title => SelectedMarker?.Label ?? "";
 
     public string Subtitle

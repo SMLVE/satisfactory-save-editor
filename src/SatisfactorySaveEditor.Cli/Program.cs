@@ -216,6 +216,16 @@ switch (args[0])
         return 0;
     }
 
+    case "trailing-hist":
+    {
+        // trailing-hist <save> <class name>: trailing-data sizes with one hex sample each.
+        var save = SaveFile.Load(path);
+        foreach (var g in save.Body.AllObjects.Where(o => o.ClassName == args[2]).GroupBy(o => o.TrailingData.Length).OrderBy(g => g.Key))
+            Console.WriteLine($"{g.Key,6} bytes x {g.Count(),5}  e.g. {g.First().InstanceName![(g.First().InstanceName!.LastIndexOf('.') + 1)..]}: " +
+                              Convert.ToHexString(g.First().TrailingData.AsSpan(0, Math.Min(48, g.Key))));
+        return 0;
+    }
+
     case "raw-structs":
     {
         var save = SaveFile.Load(path);

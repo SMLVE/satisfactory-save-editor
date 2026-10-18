@@ -18,7 +18,30 @@ public class MapTests
         Assert.Equal(139, markers.Count(m => m.Actor.ClassName == "Build_StorageContainerMk2_C"));
         Assert.All(markers.Where(m => m.Kind == MapMarkerKind.Storage), m => Assert.NotNull(m.Container));
         Assert.Contains(markers, m => m.Kind == MapMarkerKind.Vehicle && m.Label == "Truck");
-        Assert.Contains(markers, m => m.Kind == MapMarkerKind.Building && m.Actor.ClassName == "Build_ConveyorBeltMk4_C");
+        Assert.Contains(markers, m => m.Kind == MapMarkerKind.Building && m.Actor.ClassName == "Build_ConveyorPole_C");
+    }
+
+    [Fact]
+    public void Belts_AreConveyorMarkersWithWorldPaths()
+    {
+        var markers = TestEditors.Open("sample2.sav").Map.Markers;
+
+        var belts = markers.Where(m => m.Actor.ClassName.StartsWith("Build_ConveyorBelt")).ToList();
+        Assert.Equal(5062, belts.Count);
+        Assert.All(belts, b =>
+        {
+            Assert.Equal(MapMarkerKind.Conveyor, b.Kind);
+            Assert.True(b.Path!.Count >= 2);
+            // Paths start at the belt (usually exactly at its origin; a few splines start slightly offset).
+            Assert.True(Vector3.Distance(b.Actor.Position, b.Path[0]) < 5_000, $"{b.Actor.InstanceName} path starts far away");
+        });
+
+        // The belt inspected earlier: 4 spline points ending 2751 cm along X (rotation is identity).
+        var belt = belts.Single(b => b.Actor.InstanceName!.EndsWith(".Build_ConveyorBeltMk4_C_4306"));
+        var end = belt.Path![^1];
+        Assert.Equal(belt.Actor.Position.X + 2751f, end.X, 0.5f);
+        Assert.Equal(belt.Actor.Position.Y - 336.015625f, end.Y, 0.5f);
+        Assert.True(belt.Path.Count > 4); // the curved piece was sampled
     }
 
     [Fact]

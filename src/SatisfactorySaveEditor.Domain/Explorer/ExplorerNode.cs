@@ -192,6 +192,27 @@ public sealed class ExplorerTree
                     Leaf("Target", "connection", () => wire.Target.PathName ?? ""),
                 ]));
                 break;
+            case ConveyorChainTrailing chain:
+                nodes.Add(Group("Conveyor chain", "decoded trailing data", () =>
+                [
+                    Leaf("Length", "cm", () => chain.TotalLength.ToString("0.#", CultureInfo.InvariantCulture)),
+                    Group("Belts", $"{chain.Segments.Count} segments", () => chain.Segments
+                        .Select((s, i) => Leaf($"[{i}]", $"items {s.FirstItemIndex}–{s.LastItemIndex}", () => s.Belt.PathName ?? "")).ToList()),
+                    Group("Items", $"{chain.Items.Count} items", () => chain.Items
+                        .Select((it, i) => new ExplorerNode($"[{i}]", $"at {it.Offset:0} cm", () => it.ItemClass.PathName ?? "")
+                            { HintSource = () => DisplayNameOf(it.ItemClass.PathName) }).ToList()),
+                ]));
+                break;
+            case ConveyorItemsTrailing { Items.Count: > 0 } belt:
+                nodes.Add(Group("Items on belt", "decoded trailing data", () => belt.Items
+                    .Select((it, i) => new ExplorerNode($"[{i}]", $"at {it.Offset:0} cm", () => it.ItemClass.PathName ?? "")
+                        { HintSource = () => DisplayNameOf(it.ItemClass.PathName) }).ToList()));
+                break;
+            case LightweightBuildablesTrailing lightweight:
+                nodes.Add(Leaf("Lightweight buildables", "decoded trailing data", lightweight.ToString));
+                break;
+            case ConveyorItemsTrailing:
+                break; // empty belt
             case null when obj.TrailingData.Length > 0:
                 nodes.Add(Leaf("Trailing data", $"{obj.TrailingData.Length} bytes", () => Hex(obj.TrailingData)));
                 break;

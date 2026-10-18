@@ -1,5 +1,6 @@
 using SatisfactorySaveEditor.Core;
 using SatisfactorySaveEditor.Core.Model;
+using SatisfactorySaveEditor.Domain.Conveyors;
 using SatisfactorySaveEditor.Domain.Deletion;
 using SatisfactorySaveEditor.Domain.Inventory;
 using SatisfactorySaveEditor.Domain.Map;
@@ -29,6 +30,7 @@ public sealed class SaveEditor
         Deletion = new DeletionService(this);
         Power = new PowerService(this);
         Structures = new StructureService(this);
+        Conveyors = new ConveyorService(this);
     }
 
     public SaveFile Save { get; }
@@ -40,6 +42,7 @@ public sealed class SaveEditor
     public DeletionService Deletion { get; }
     public PowerService Power { get; }
     public StructureService Structures { get; }
+    public ConveyorService Conveyors { get; }
 
     /// <summary>Drops the instance-name index after objects were added or removed.</summary>
     internal void InvalidateIndex() => _byInstanceName = null;

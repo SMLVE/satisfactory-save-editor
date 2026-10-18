@@ -1,5 +1,6 @@
 using SatisfactorySaveEditor.Core.Model;
 using SatisfactorySaveEditor.Core.Properties;
+using SatisfactorySaveEditor.Core.Trailing;
 
 namespace SatisfactorySaveEditor.Domain.Tests;
 
@@ -72,10 +73,35 @@ public class DeletionTests
         Assert.Null(TestEditors.Reload(editor).Find(crate.InstanceName));
     }
 
+    [Fact]
+    public void Belt_RemovesItsChain_AndUnlinksTheOtherBeltsFromIt()
+    {
+        var editor = TestEditors.Open("sample2.sav");
+        // A belt in a chain of several belts.
+        var chainActor = editor.Save.Body.AllObjects.OfType<ActorObject>()
+            .First(a => a.Trailing is ConveyorChainTrailing { Segments.Count: >= 3 });
+        var chain = (ConveyorChainTrailing)chainActor.Trailing!;
+        var belt = (ActorObject)editor.Find(chain.Segments[1].Belt.PathName)!;
+        var otherBelts = chain.Segments.Where(s => s.Belt.PathName != belt.InstanceName).Select(s => s.Belt.PathName!).ToList();
+
+        var plan = editor.Deletion.Plan(belt);
+
+        Assert.True(plan.CanDelete, plan.BlockedReason);
+        Assert.Contains(chainActor, plan.AlsoDeleted);
+        Assert.All(otherBelts, name => Assert.Contains(plan.ReferencesToClear, r => r.Owner.InstanceName == name));
+        editor.Deletion.Execute(plan);
+
+        var reloaded = TestEditors.Reload(editor);
+        Assert.Null(reloaded.Find(belt.InstanceName));
+        Assert.Null(reloaded.Find(chainActor.InstanceName));
+        Assert.All(otherBelts, name =>
+            Assert.True(reloaded.Find(name)!.Properties.Get<ObjectValue>("mConveyorChainActor")!.Value.IsEmpty));
+        Assert.DoesNotContain(AllReferences(reloaded), r => r == belt.InstanceName || r == chainActor.InstanceName);
+    }
+
     [Theory]
     [InlineData("Char_Player_C", "Players")]
     [InlineData("BP_DropPod_C", "part of the map")]
-    [InlineData("Build_ConveyorBeltMk4_C", "can't edit")]
     public void UnsafeDeletions_AreRefused(string className, string reasonFragment)
     {
         var editor = TestEditors.Open("sample2.sav");

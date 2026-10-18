@@ -47,6 +47,9 @@ public sealed class MapControl : Control
     private static readonly IPen PowerLinePen = new Pen(PowerLineBrush, 1);
     private static readonly IPen SelectedLinePen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 2.5);
 
+    private static readonly IPen ConveyorPen = new Pen(new SolidColorBrush(Color.FromArgb(0xD0, 0x4F, 0xC9, 0xB8)), 1.5);
+    private static readonly IPen SelectedPathPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 3.5);
+
     private const double ClickRadius = 9;
     private const double MinScale = 1e-5, MaxScale = 0.2; // pixels per centimetre
 
@@ -61,6 +64,7 @@ public sealed class MapControl : Control
     private static readonly Dictionary<MapMarkerKind, (IBrush Brush, double Size, bool Round)> MarkerStyles = new()
     {
         [MapMarkerKind.Building] = (new SolidColorBrush(Color.FromArgb(0x90, 0x9A, 0xA4, 0xB0)), 2, false),
+        [MapMarkerKind.Conveyor] = (new SolidColorBrush(Color.FromRgb(0x4F, 0xC9, 0xB8)), 2, false),
         [MapMarkerKind.Logistics] = (new SolidColorBrush(Color.FromRgb(0xC9, 0xA2, 0x27)), 2.5, false),
         [MapMarkerKind.Machine] = (new SolidColorBrush(Color.FromRgb(0xF0, 0x8A, 0x24)), 3.5, false),
         [MapMarkerKind.World] = (new SolidColorBrush(Color.FromRgb(0x4C, 0xC3, 0x8A)), 5, true),
@@ -164,6 +168,8 @@ public sealed class MapControl : Control
         var labels = new List<(MapMarker Marker, Point At)>();
         foreach (var marker in markers)
         {
+            if (marker.Path is { } path && DrawPath(context, bounds, marker, path, occupied))
+                continue;
             var p = WorldToScreen(marker.Position);
             if (p.X < -10 || p.Y < -10 || p.X > bounds.Width + 10 || p.Y > bounds.Height + 10)
                 continue;
@@ -185,6 +191,9 @@ public sealed class MapControl : Control
 
         if (SelectedMarker is { } selected)
         {
+            if (selected.Path is { } selectedPath)
+                for (int i = 1; i < selectedPath.Count; i++)
+                    context.DrawLine(SelectedPathPen, WorldToScreen(selectedPath[i - 1]), WorldToScreen(selectedPath[i]));
             var p = WorldToScreen(selected.Position);
             context.DrawEllipse(null, SelectionPen, p, 9, 9);
             labels.Add((selected, p));
@@ -212,6 +221,31 @@ public sealed class MapControl : Control
             double sy = _origin.Y + y * _scale;
             context.DrawLine(GridPen, new Point(0, sy), new Point(bounds.Width, sy));
         }
+    }
+
+    /// <summary>
+    /// Draws a belt or pipe along its path. Returns true when handled (drawn or culled); false when the path is
+    /// too small on screen, so the caller draws a dot instead.
+    /// </summary>
+    private bool DrawPath(DrawingContext context, Rect bounds, MapMarker marker, IReadOnlyList<Vector3> path, HashSet<long> occupied)
+    {
+        var min = WorldToScreen(new Vector3(marker.PathBounds.Min, 0));
+        var max = WorldToScreen(new Vector3(marker.PathBounds.Max, 0));
+        if (max.X < 0 || max.Y < 0 || min.X > bounds.Width || min.Y > bounds.Height)
+            return true; // entirely off screen
+        if (max.X - min.X < 3 && max.Y - min.Y < 3)
+            return false; // a dot is enough
+        for (int i = 1; i < path.Count; i++)
+            context.DrawLine(ConveyorPen, WorldToScreen(path[i - 1]), WorldToScreen(path[i]));
+        return true;
+    }
+
+    private static double DistanceToSegment(Point p, Point a, Point b)
+    {
+        double dx = b.X - a.X, dy = b.Y - a.Y;
+        double lengthSquared = dx * dx + dy * dy;
+        double t = lengthSquared == 0 ? 0 : Math.Clamp(((p.X - a.X) * dx + (p.Y - a.Y) * dy) / lengthSquared, 0, 1);
+        return Distance(p, new Point(a.X + t * dx, a.Y + t * dy));
     }
 
     private void DrawStructures(DrawingContext context, Rect bounds)
@@ -392,13 +426,26 @@ public sealed class MapControl : Control
             var marker = markers[i];
             if (best is not null && marker.Kind < best.Kind)
                 break; // markers are ordered by layer; lower layers only win if nothing above was in range
-            double d = Distance(WorldToScreen(marker.Position), screen);
+            double d = marker.Path is { } path ? DistanceToPath(marker, path, screen) : Distance(WorldToScreen(marker.Position), screen);
             if (d <= bestDistance)
             {
                 best = marker;
                 bestDistance = d;
             }
         }
+        return best;
+    }
+
+    /// <summary>Screen distance from a point to a belt's path (quickly rejected via the path bounds).</summary>
+    private double DistanceToPath(MapMarker marker, IReadOnlyList<Vector3> path, Point screen)
+    {
+        var min = WorldToScreen(new Vector3(marker.PathBounds.Min, 0));
+        var max = WorldToScreen(new Vector3(marker.PathBounds.Max, 0));
+        if (screen.X < min.X - ClickRadius || screen.Y < min.Y - ClickRadius || screen.X > max.X + ClickRadius || screen.Y > max.Y + ClickRadius)
+            return double.MaxValue;
+        double best = double.MaxValue;
+        for (int i = 1; i < path.Count; i++)
+            best = Math.Min(best, DistanceToSegment(screen, WorldToScreen(path[i - 1]), WorldToScreen(path[i])));
         return best;
     }
 

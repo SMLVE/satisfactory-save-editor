@@ -53,6 +53,9 @@ public static class TrailingDecoders
             TrailingValue? value = obj.ClassName switch
             {
                 "FGLightweightBuildableSubsystem" => LightweightBuildablesTrailing.Read(reader),
+                var c when c.StartsWith("FGConveyorChainActor", StringComparison.Ordinal) => ConveyorChainTrailing.Read(reader),
+                var c when c.StartsWith("Build_ConveyorBelt", StringComparison.Ordinal)
+                           || c.StartsWith("Build_ConveyorLift", StringComparison.Ordinal) => ConveyorItemsTrailing.Read(reader),
                 _ when IsWire(obj) => PowerLineTrailing.Read(reader),
                 _ => null,
             };

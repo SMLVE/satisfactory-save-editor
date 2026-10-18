@@ -1,6 +1,7 @@
 using System.Text;
 using SatisfactorySaveEditor.Core.Model;
 using SatisfactorySaveEditor.Core.Properties;
+using SatisfactorySaveEditor.Core.Trailing;
 using SatisfactorySaveEditor.Domain.Inventory;
 
 namespace SatisfactorySaveEditor.Domain.Deletion;
@@ -40,6 +41,13 @@ public sealed class DeletionService(SaveEditor editor)
     /// <summary>Actors that only exist to connect or describe another actor and are deleted along with it.</summary>
     private static readonly HashSet<string> CascadeClasses = ["Build_PowerLine_C", "FGWheeledVehicleIdentifier"];
 
+    /// <summary>
+    /// Sidecars are deleted with what they point at. Conveyor chains are included: removing a belt removes
+    /// its whole chain (the items on it are lost) and the game rebuilds chains for the remaining belts.
+    /// </summary>
+    private static bool IsCascade(ActorObject actor) =>
+        CascadeClasses.Contains(actor.ClassName) || actor.Trailing is ConveyorChainTrailing;
+
     public DeletionPlan Plan(ActorObject target)
     {
         var plan = new DeletionPlan(target);
@@ -58,7 +66,7 @@ public sealed class DeletionService(SaveEditor editor)
             var names = NamesOf(removed);
             foreach (var other in editor.Save.Body.AllObjects.OfType<ActorObject>())
             {
-                if (!removed.Contains(other) && CascadeClasses.Contains(other.ClassName) && !actors.Contains(other) && Mentions(other, names))
+                if (!removed.Contains(other) && IsCascade(other) && !actors.Contains(other) && Mentions(other, names))
                     actors.Add(other);
             }
         }
@@ -74,7 +82,7 @@ public sealed class DeletionService(SaveEditor editor)
                     return Block(plan, $"{Friendly(obj)} refers to it in data the editor can't read.");
                 continue;
             }
-            if (ContainsAny(obj.TrailingData, removedNames))
+            if (TrailingMentions(obj, removedNames))
                 return Block(plan, $"{Friendly(obj)} refers to it in data the editor can't edit yet.");
             CollectReferences(obj, obj.Properties, removedNames, plan.ReferencesToClear);
         }
@@ -116,8 +124,25 @@ public sealed class DeletionService(SaveEditor editor)
         objects.Select(o => o.InstanceName).OfType<string>().ToHashSet();
 
     private static bool Mentions(SaveObject obj, HashSet<string> names) =>
-        ContainsAny(obj.TrailingData, names)
+        TrailingMentions(obj, names)
         || (obj.IsParsed && PropertyWalker.Descendants(obj.Properties).OfType<ObjectValue>().Any(v => v.Value.PathName is { } p && names.Contains(p)));
+
+    /// <summary>
+    /// Whether an object's trailing data refers to any of the names. Decoded trailing data is checked through
+    /// its references; raw bytes are searched.
+    /// </summary>
+    private static bool TrailingMentions(SaveObject obj, HashSet<string> names)
+    {
+        bool Has(ObjectReference r) => r.PathName is { } p && names.Contains(p);
+        return obj.Trailing switch
+        {
+            PowerLineTrailing wire => Has(wire.Source) || Has(wire.Target),
+            ConveyorChainTrailing chain => Has(chain.FirstBelt) || Has(chain.LastBelt) || chain.Segments.Any(s => Has(s.Belt)),
+            ConveyorItemsTrailing => false, // item classes only, no object references
+            LightweightBuildablesTrailing lightweight => lightweight.Classes.Any(c => c.Instances.Any(i => Has(i.BlueprintProxy))),
+            _ => ContainsAny(obj.TrailingData, names),
+        };
+    }
 
     /// <summary>
     /// Whether serialized bytes contain any of the names as an FString. Matching the null terminator avoids
