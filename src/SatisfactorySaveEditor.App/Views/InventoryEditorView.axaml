@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SatisfactorySaveEditor.App.ViewModels.Inventory"
+             x:Class="SatisfactorySaveEditor.App.Views.InventoryEditorView"
+             x:DataType="vm:InventoryEditorViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="ListBox.slots ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="3" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid ColumnDefinitions="*,300" RowDefinitions="Auto,*">
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,6">
+      <ComboBox ItemsSource="{Binding Inventories}" SelectedItem="{Binding SelectedInventory}" MinWidth="220" />
+      <Button Content="Fill all stacks" Command="{Binding FillStacksCommand}" />
+    </StackPanel>
+
+    <ListBox Grid.Row="1" Classes="slots" ItemsSource="{Binding Slots}" SelectedItem="{Binding SelectedSlot}">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="vm:SlotViewModel">
+          <Border Width="128" Height="64" Padding="6" CornerRadius="4" BorderThickness="1"
+                  BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <TextBlock Text="{Binding Number}" Classes="muted" FontSize="10" />
+              <TextBlock Grid.Row="1" Text="{Binding Name}" FontSize="12" TextWrapping="Wrap"
+                         TextTrimming="CharacterEllipsis" Classes.muted="{Binding IsEmpty}" />
+              <TextBlock Grid.Row="2" Text="{Binding CountText}" FontSize="12" FontWeight="SemiBold"
+                         HorizontalAlignment="Right" />
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <StackPanel Grid.RowSpan="2" Grid.Column="1" Spacing="8" Margin="12,0,0,0">
+      <TextBlock Text="Slot" Classes="heading" />
+      <TextBlock Text="Select a slot." Classes="muted" IsVisible="{Binding !HasSelectedSlot}" />
+      <TextBlock Text="Game data is needed to pick items (File › Locate game data)." Classes="muted" TextWrapping="Wrap"
+                 IsVisible="{Binding !HasItems}" />
+      <StackPanel Spacing="8" IsVisible="{Binding HasSelectedSlot}">
+        <AutoCompleteBox ItemsSource="{Binding Items}" SelectedItem="{Binding EditItem}"
+                         FilterMode="Contains" MinimumPrefixLength="1" Watermark="Search items…" />
+        <TextBlock Text="{Binding StackHint}" Classes="muted" FontSize="12" />
+        <NumericUpDown Value="{Binding EditCount}" Minimum="1" Maximum="{Binding MaxCount}"
+                       Increment="1" FormatString="0" />
+        <CheckBox Content="Allow over-stacking" IsChecked="{Binding AllowOverstack}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="Set slot" Command="{Binding SetSlotCommand}" />
+          <Button Content="Clear slot" Command="{Binding ClearSlotCommand}" />
+        </StackPanel>
+      </StackPanel>
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Classes.error="{Binding MessageIsError}"
+                 IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+  </Grid>
+</UserControl>

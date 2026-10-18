@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SatisfactorySaveEditor.App.ViewModels.Containers"
+             xmlns:views="using:SatisfactorySaveEditor.App.Views"
+             x:Class="SatisfactorySaveEditor.App.Views.ContainersView"
+             x:DataType="vm:ContainersViewModel">
+
+  <Grid ColumnDefinitions="320,4,*" Margin="8">
+    <DockPanel>
+      <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,6">
+        <ComboBox ItemsSource="{Binding Filters}" SelectedItem="{Binding SelectedFilter}" HorizontalAlignment="Stretch" />
+        <TextBox Text="{Binding SearchText}" Watermark="Search by type, name or item inside…" />
+        <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="12" />
+      </StackPanel>
+      <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0"
+                 Text="The Dimensional Depot is not editable yet: its contents use a format not seen in your saves so far." />
+      <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ContainerRow">
+            <StackPanel Spacing="1">
+              <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="11" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+
+    <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+
+    <Panel Grid.Column="2" Margin="8,0,0,0">
+      <TextBlock Text="Select a container." Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 IsVisible="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNull}}" />
+      <DockPanel IsVisible="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,10">
+          <TextBlock Text="{Binding SelectedRow.Title, FallbackValue=''}" Classes="heading" />
+          <TextBlock Text="{Binding SelectedRow.Detail, FallbackValue=''}" Classes="muted" FontSize="12" />
+        </StackPanel>
+        <views:InventoryEditorView DataContext="{Binding Inventory}" />
+      </DockPanel>
+    </Panel>
+  </Grid>
+</UserControl>

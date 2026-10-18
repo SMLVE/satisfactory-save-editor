@@ -165,6 +165,20 @@ switch (args[0])
         return 0;
     }
 
+    case "inventories":
+    {
+        // Lists inventory components grouped by owner class and component name.
+        var save = SaveFile.Load(path);
+        var inventories = save.Body.AllObjects.OfType<ComponentObject>()
+            .Where(c => c.IsParsed && c.Properties.Find("mInventoryStacks") is not null).ToList();
+        var byName = save.Body.AllObjects.Where(o => o.InstanceName is not null).GroupBy(o => o.InstanceName!).ToDictionary(g => g.Key, g => g.First());
+        foreach (var g in inventories.GroupBy(c => (Owner: byName.GetValueOrDefault(c.ParentActorName ?? "")?.ClassName ?? "(no owner)",
+                     Component: (c.InstanceName ?? "")[((c.InstanceName ?? "").LastIndexOf('.') + 1)..], c.ClassName))
+                     .OrderBy(g => g.Key.Owner))
+            Console.WriteLine($"{g.Count(),6}  {g.Key.Owner,-50} {g.Key.Component,-28} {g.Key.ClassName}");
+        return 0;
+    }
+
     case "raw-structs":
     {
         var save = SaveFile.Load(path);

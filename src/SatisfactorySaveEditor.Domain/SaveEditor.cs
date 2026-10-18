@@ -20,12 +20,14 @@ public sealed class SaveEditor
         GameData = gameData;
         Players = new PlayerService(this);
         Progression = new ProgressionService(this);
+        Containers = new ContainerService(this);
     }
 
     public SaveFile Save { get; }
     public GameData.GameData? GameData { get; }
     public PlayerService Players { get; }
     public ProgressionService Progression { get; }
+    public ContainerService Containers { get; }
 
     public GameData.GameData RequireGameData() =>
         GameData ?? throw new InvalidOperationException("Game data is not loaded. Locate the game's CommunityResources/Docs JSON first.");

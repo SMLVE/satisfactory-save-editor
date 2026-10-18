@@ -49,6 +49,9 @@
         <TabItem Header="Players">
           <views:PlayersView DataContext="{Binding Players}" />
         </TabItem>
+        <TabItem Header="Containers">
+          <views:ContainersView DataContext="{Binding Containers}" />
+        </TabItem>
         <TabItem Header="Progression">
           <views:ProgressionView DataContext="{Binding Progression}" />
         </TabItem>

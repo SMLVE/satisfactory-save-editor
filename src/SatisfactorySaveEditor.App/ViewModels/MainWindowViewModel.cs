@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SatisfactorySaveEditor.App.Services;
+using SatisfactorySaveEditor.App.ViewModels.Containers;
 using SatisfactorySaveEditor.App.ViewModels.Explorer;
 using SatisfactorySaveEditor.App.ViewModels.Players;
 using SatisfactorySaveEditor.App.ViewModels.Progression;
@@ -26,9 +27,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty] private ExplorerViewModel? _explorer;
     [ObservableProperty] private PlayersViewModel? _players;
+    [ObservableProperty] private ContainersViewModel? _containers;
     [ObservableProperty] private ProgressionViewModel? _progression;
 
-    /// <summary>Tab order in the main window: Players, Progression, Explorer.</summary>
+    private const int PlayersTab = 0, ContainersTab = 1, ProgressionTab = 2, ExplorerTab = 3;
+
+    /// <summary>Selected tab: Players, Containers, Progression or Explorer.</summary>
     [ObservableProperty] private int _selectedTab;
 
     partial void OnSelectedTabChanged(int value)
@@ -38,15 +42,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
         // Refresh the activated tab so it reflects edits made in the other tabs.
         switch (value)
         {
-            case 0: Players = new PlayersViewModel(Document, Players?.SelectedPlayer?.Name); break;
-            case 1: Progression?.Refresh(); break;
-            case 2: Explorer?.RefreshSelection(); break;
+            case PlayersTab: Players = new PlayersViewModel(Document, Players?.SelectedPlayer?.Name); break;
+            case ContainersTab: Containers = new ContainersViewModel(Document); break;
+            case ProgressionTab: Progression?.Refresh(); break;
+            case ExplorerTab: Explorer?.RefreshSelection(); break;
         }
     }
 
     private void BuildTabs(SaveDocument doc)
     {
         Players = new PlayersViewModel(doc);
+        Containers = new ContainersViewModel(doc);
         Progression = new ProgressionViewModel(doc);
         Explorer ??= new ExplorerViewModel(doc);
     }
