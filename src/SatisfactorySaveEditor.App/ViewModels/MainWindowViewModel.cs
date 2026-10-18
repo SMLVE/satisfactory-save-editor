@@ -183,7 +183,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             await work();
         }
-        catch (Exception ex) when (ex is SaveFormatException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex) when (ex is SaveFormatException or SaveValidationException or IOException
+                                       or UnauthorizedAccessException or InvalidOperationException)
         {
             Status = previous;
             await _dialogs.ShowMessageAsync("Error", ex.Message);

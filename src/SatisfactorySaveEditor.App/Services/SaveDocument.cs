@@ -37,13 +37,15 @@ public sealed class SaveDocument
     }
 
     /// <summary>
-    /// Saves to <paramref name="path"/>. An existing file is first copied to a timestamped .bak next to it,
+    /// Saves to <paramref name="path"/> after verifying the serialized save reads back correctly.
+    /// An existing file is first copied to a timestamped .bak next to it,
     /// and the new file is written to a temporary file and moved into place so a failed save never
     /// leaves a truncated save behind. Returns the backup path, if one was made.
     /// </summary>
     public async Task<string?> SaveAsync(string path)
     {
-        var bytes = await Task.Run(() => Save.ToBytes());
+        // Verified before anything touches the disk: a failed check throws and the existing file stays intact.
+        var bytes = await Task.Run(() => Save.ToValidatedBytes());
         string? backup = null;
         if (File.Exists(path))
         {
