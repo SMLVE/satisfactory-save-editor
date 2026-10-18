@@ -1,4 +1,5 @@
 using SatisfactorySaveEditor.Core.Model;
+using SatisfactorySaveEditor.Core.Trailing;
 using SatisfactorySaveEditor.Domain.Inventory;
 
 namespace SatisfactorySaveEditor.App.Services;
@@ -19,7 +20,9 @@ public static class DeleteWorkflow
         }
 
         var details = new List<string> { $"Remove {name} and its {plan.ComponentCount} components" };
-        details.AddRange(plan.AlsoDeleted.Select(a => $"Also remove {ContainerService.FriendlyClassName(a.ClassName)} ({ShortName(a)}), which is attached to it"));
+        details.AddRange(plan.AlsoDeleted.Select(a => a.Trailing is PowerLineTrailing
+            ? $"Also remove the power line {document.Editor.Power.Resolve(a).Description} ({ShortName(a)})"
+            : $"Also remove {ContainerService.FriendlyClassName(a.ClassName)} ({ShortName(a)}), which is attached to it"));
         details.AddRange(plan.ReferencesToClear.Select(r => $"Unlink {r.Description}"));
         var held = plan.ObjectsToRemove.Where(o => o.IsParsed && o.Properties.Find("mInventoryStacks") is not null)
             .Select(o => document.Editor.OpenInventory(o).Slots.Count(s => !s.IsEmpty)).Sum();

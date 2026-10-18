@@ -4,7 +4,9 @@ using SatisfactorySaveEditor.Domain.Deletion;
 using SatisfactorySaveEditor.Domain.Inventory;
 using SatisfactorySaveEditor.Domain.Map;
 using SatisfactorySaveEditor.Domain.Players;
+using SatisfactorySaveEditor.Domain.Power;
 using SatisfactorySaveEditor.Domain.Progression;
+using SatisfactorySaveEditor.Domain.Structures;
 
 namespace SatisfactorySaveEditor.Domain;
 
@@ -25,6 +27,8 @@ public sealed class SaveEditor
         Containers = new ContainerService(this);
         Map = new MapService(this);
         Deletion = new DeletionService(this);
+        Power = new PowerService(this);
+        Structures = new StructureService(this);
     }
 
     public SaveFile Save { get; }
@@ -34,6 +38,8 @@ public sealed class SaveEditor
     public ContainerService Containers { get; }
     public MapService Map { get; }
     public DeletionService Deletion { get; }
+    public PowerService Power { get; }
+    public StructureService Structures { get; }
 
     /// <summary>Drops the instance-name index after objects were added or removed.</summary>
     internal void InvalidateIndex() => _byInstanceName = null;

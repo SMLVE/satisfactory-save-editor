@@ -1,6 +1,7 @@
 using System.Globalization;
 using SatisfactorySaveEditor.Core.Model;
 using SatisfactorySaveEditor.Core.Properties;
+using SatisfactorySaveEditor.Core.Trailing;
 
 namespace SatisfactorySaveEditor.Domain.Explorer;
 
@@ -181,8 +182,20 @@ public sealed class ExplorerTree
         }
 
         nodes.AddRange(BuildProperties(obj.Properties));
-        if (obj.TrailingData.Length > 0)
-            nodes.Add(Leaf("Trailing data", $"{obj.TrailingData.Length} bytes", () => Hex(obj.TrailingData)));
+        switch (obj.Trailing)
+        {
+            case PowerLineTrailing wire:
+                // Read-only: rewiring would also require updating the connections' wire lists.
+                nodes.Add(Group("Power line ends", "decoded trailing data", () =>
+                [
+                    Leaf("Source", "connection", () => wire.Source.PathName ?? ""),
+                    Leaf("Target", "connection", () => wire.Target.PathName ?? ""),
+                ]));
+                break;
+            case null when obj.TrailingData.Length > 0:
+                nodes.Add(Leaf("Trailing data", $"{obj.TrailingData.Length} bytes", () => Hex(obj.TrailingData)));
+                break;
+        }
         return nodes;
     }
 

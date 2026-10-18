@@ -18,9 +18,19 @@ public sealed record MapMarker(MapMarkerKind Kind, ActorObject Actor, Vector3 Po
     public Container? Container { get; init; }
 }
 
+/// <summary>A power line drawn between the buildings at its two ends.</summary>
+public sealed record MapLine(Vector3 From, Vector3 To, ActorObject Line, ActorObject FromBuilding, ActorObject ToBuilding);
+
 /// <summary>Builds map markers for players, inventories (containers, vehicles, machines...) and other buildings.</summary>
 public sealed class MapService(SaveEditor editor)
 {
+    /// <summary>Power lines whose both ends resolve to placed buildings.</summary>
+    public IReadOnlyList<MapLine> PowerLines =>
+        editor.Power.Lines
+            .Where(l => l.SourceBuilding is { } s && l.TargetBuilding is { } t && HasPosition(s) && HasPosition(t))
+            .Select(l => new MapLine(l.SourceBuilding!.Position, l.TargetBuilding!.Position, l.Line, l.SourceBuilding!, l.TargetBuilding!))
+            .ToList();
+
     public IReadOnlyList<MapMarker> Markers
     {
         get

@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using SatisfactorySaveEditor.Domain.Map;
+using SatisfactorySaveEditor.Domain.Structures;
 
 namespace SatisfactorySaveEditor.App.Controls;
 
@@ -21,6 +22,30 @@ public sealed class MapControl : Control
     public static readonly StyledProperty<MapMarker?> SelectedMarkerProperty =
         AvaloniaProperty.Register<MapControl, MapMarker?>(nameof(SelectedMarker),
             defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
+
+    public static readonly StyledProperty<IReadOnlyList<MapLine>?> LinesProperty =
+        AvaloniaProperty.Register<MapControl, IReadOnlyList<MapLine>?>(nameof(Lines));
+
+    public static readonly StyledProperty<IReadOnlyList<Structure>?> StructuresProperty =
+        AvaloniaProperty.Register<MapControl, IReadOnlyList<Structure>?>(nameof(Structures));
+
+    private static readonly Dictionary<StructureKind, IBrush> StructureBrushes = new()
+    {
+        [StructureKind.Foundation] = new SolidColorBrush(Color.FromArgb(0xA0, 0x55, 0x60, 0x6E)),
+        [StructureKind.Ramp] = new SolidColorBrush(Color.FromArgb(0xA0, 0x6A, 0x76, 0x86)),
+        [StructureKind.Wall] = new SolidColorBrush(Color.FromArgb(0xD0, 0xA9, 0xB4, 0xC2)),
+        [StructureKind.Walkway] = new SolidColorBrush(Color.FromArgb(0xA0, 0x7C, 0x6F, 0x5E)),
+        [StructureKind.Stairs] = new SolidColorBrush(Color.FromArgb(0xA0, 0x7C, 0x6F, 0x5E)),
+        [StructureKind.Other] = new SolidColorBrush(Color.FromArgb(0xA0, 0x60, 0x60, 0x60)),
+    };
+
+    /// <summary>Legend color for the foundations layer.</summary>
+    public static IBrush StructureBrush => StructureBrushes[StructureKind.Foundation];
+
+    /// <summary>Color used for power lines (also shown in the layer legend).</summary>
+    public static readonly IBrush PowerLineBrush = new SolidColorBrush(Color.FromArgb(0xB0, 0xF2, 0xD3, 0x4F));
+    private static readonly IPen PowerLinePen = new Pen(PowerLineBrush, 1);
+    private static readonly IPen SelectedLinePen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 2.5);
 
     private const double ClickRadius = 9;
     private const double MinScale = 1e-5, MaxScale = 0.2; // pixels per centimetre
@@ -56,7 +81,7 @@ public sealed class MapControl : Control
 
     static MapControl()
     {
-        AffectsRender<MapControl>(MarkersProperty, SelectedMarkerProperty);
+        AffectsRender<MapControl>(MarkersProperty, SelectedMarkerProperty, LinesProperty, StructuresProperty);
         FocusableProperty.OverrideDefaultValue<MapControl>(true);
         ClipToBoundsProperty.OverrideDefaultValue<MapControl>(true);
     }
@@ -71,6 +96,20 @@ public sealed class MapControl : Control
     {
         get => GetValue(SelectedMarkerProperty);
         set => SetValue(SelectedMarkerProperty, value);
+    }
+
+    /// <summary>Foundations, walls and ramps drawn as footprints beneath everything else.</summary>
+    public IReadOnlyList<Structure>? Structures
+    {
+        get => GetValue(StructuresProperty);
+        set => SetValue(StructuresProperty, value);
+    }
+
+    /// <summary>Power lines drawn beneath the markers; lines touching the selected building are highlighted.</summary>
+    public IReadOnlyList<MapLine>? Lines
+    {
+        get => GetValue(LinesProperty);
+        set => SetValue(LinesProperty, value);
     }
 
     public Point WorldToScreen(Vector3 world) => new(_origin.X + world.X * _scale, _origin.Y + world.Y * _scale);
@@ -114,6 +153,8 @@ public sealed class MapControl : Control
         var bounds = new Rect(Bounds.Size);
         context.FillRectangle(Background, bounds);
         DrawGrid(context, bounds);
+        DrawStructures(context, bounds);
+        DrawLines(context, bounds);
 
         var markers = Markers;
         if (markers is null)
@@ -171,6 +212,69 @@ public sealed class MapControl : Control
             double sy = _origin.Y + y * _scale;
             context.DrawLine(GridPen, new Point(0, sy), new Point(bounds.Width, sy));
         }
+    }
+
+    private void DrawStructures(DrawingContext context, Rect bounds)
+    {
+        if (Structures is not { } structures)
+            return;
+        var occupied = new HashSet<long>();
+        foreach (var s in structures)
+        {
+            var p = WorldToScreen(s.Position);
+            double w = s.Width * _scale, d = s.Depth * _scale;
+            double reach = Math.Max(w, d);
+            if (p.X < -reach || p.Y < -reach || p.X > bounds.Width + reach || p.Y > bounds.Height + reach)
+                continue;
+            var brush = StructureBrushes[s.Kind];
+
+            if (reach < 3)
+            {
+                // Too small to show a shape: one dot per 2×2 pixel cell.
+                long cell = ((long)(p.X / 2) << 21) | (long)(p.Y / 2);
+                if (occupied.Add(cell))
+                    context.FillRectangle(brush, new Rect(p.X - 1, p.Y - 1, 2, 2));
+                continue;
+            }
+
+            // Most structures are rotated in 90° steps: draw them axis-aligned, swapping sides on odd quarters.
+            double quarter = s.Yaw / (Math.PI / 2);
+            double nearest = Math.Round(quarter);
+            if (Math.Abs(quarter - nearest) < 0.01)
+            {
+                bool swap = ((long)nearest & 1) != 0;
+                double rw = swap ? d : w, rd = swap ? w : d;
+                context.FillRectangle(brush, new Rect(p.X - rw / 2, p.Y - rd / 2, rw, rd));
+            }
+            else
+            {
+                using (context.PushTransform(Matrix.CreateRotation(s.Yaw) * Matrix.CreateTranslation(p.X, p.Y)))
+                    context.FillRectangle(brush, new Rect(-w / 2, -d / 2, w, d));
+            }
+        }
+    }
+
+    private void DrawLines(DrawingContext context, Rect bounds)
+    {
+        if (Lines is not { } lines)
+            return;
+        var selected = SelectedMarker?.Actor;
+        var highlighted = new List<(Point, Point)>();
+        foreach (var line in lines)
+        {
+            var a = WorldToScreen(line.From);
+            var b = WorldToScreen(line.To);
+            // Skip segments entirely to one side of the view.
+            if ((a.X < 0 && b.X < 0) || (a.Y < 0 && b.Y < 0)
+                || (a.X > bounds.Width && b.X > bounds.Width) || (a.Y > bounds.Height && b.Y > bounds.Height))
+                continue;
+            if (selected is not null && (line.FromBuilding == selected || line.ToBuilding == selected || line.Line == selected))
+                highlighted.Add((a, b));
+            else
+                context.DrawLine(PowerLinePen, a, b);
+        }
+        foreach (var (a, b) in highlighted)
+            context.DrawLine(SelectedLinePen, a, b);
     }
 
     private void DrawScaleBar(DrawingContext context, Rect bounds)

@@ -31,10 +31,25 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+        <StackPanel Orientation="Horizontal" Spacing="14">
+          <CheckBox IsChecked="{Binding ShowPowerLines}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Border Width="14" Height="2" Background="{Binding PowerLinesBrush}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding PowerLinesLabel}" />
+            </StackPanel>
+          </CheckBox>
+          <CheckBox IsChecked="{Binding ShowStructures}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Border Width="10" Height="10" Background="{Binding StructuresBrush}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding StructuresLabel}" />
+            </StackPanel>
+          </CheckBox>
+        </StackPanel>
       </StackPanel>
       <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
-                 Text="Scroll to zoom, drag to pan, click a marker to inspect it. Foundations and walls are not shown yet." />
-      <controls:MapControl x:Name="Map" Markers="{Binding VisibleMarkers}" SelectedMarker="{Binding SelectedMarker}" />
+                 Text="Scroll to zoom, drag to pan, click a marker to inspect it." />
+      <controls:MapControl x:Name="Map" Markers="{Binding VisibleMarkers}" SelectedMarker="{Binding SelectedMarker}"
+                           Lines="{Binding VisibleLines}" Structures="{Binding VisibleStructures}" />
     </DockPanel>
 
     <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
@@ -51,6 +66,16 @@
           </Grid>
           <TextBlock Text="{Binding Subtitle}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
           <TextBlock Text="This object has no inventory." Classes="muted" Margin="0,8,0,0" IsVisible="{Binding HasNoInventory}" />
+          <StackPanel Spacing="2" Margin="0,8,0,0" IsVisible="{Binding HasPowerConnections}">
+            <TextBlock Text="Power lines" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding PowerConnections}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Text="{Binding}" FontSize="12" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
         </StackPanel>
         <Panel>
           <Panel IsVisible="{Binding Player, Converter={x:Static ObjectConverters.IsNotNull}}">

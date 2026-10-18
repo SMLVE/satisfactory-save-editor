@@ -1,6 +1,7 @@
 using System.Numerics;
 using SatisfactorySaveEditor.Core.IO;
 using SatisfactorySaveEditor.Core.Properties;
+using SatisfactorySaveEditor.Core.Trailing;
 
 namespace SatisfactorySaveEditor.Core.Model;
 
@@ -41,8 +42,24 @@ public abstract class SaveObject
     public PropertyList Properties { get; private set; } = [];
     /// <summary>Object GUID following the property list, if any.</summary>
     public Guid? ObjectGuid { get; set; }
-    /// <summary>Class-specific bytes after the property list, kept verbatim.</summary>
-    public byte[] TrailingData { get; set; } = [];
+    private byte[] _trailingRaw = [];
+
+    /// <summary>
+    /// Class-specific bytes after the property list. When <see cref="Trailing"/> is decoded these bytes are
+    /// produced from it; setting raw bytes discards the decoded value.
+    /// </summary>
+    public byte[] TrailingData
+    {
+        get => Trailing?.ToBytes() ?? _trailingRaw;
+        set
+        {
+            _trailingRaw = value;
+            Trailing = null;
+        }
+    }
+
+    /// <summary>Decoded trailing data for classes with a decoder (e.g. power lines); null when kept raw.</summary>
+    public TrailingValue? Trailing { get; private set; }
 
     public string ClassName
     {
@@ -148,6 +165,11 @@ public abstract class SaveObject
                 throw new SaveFormatException($"Unexpected object GUID flag {hasGuid}.");
             ObjectGuid = hasGuid == 1 ? r.ReadGuid() : null;
             TrailingData = r.ReadBytes(r.Remaining);
+            if (TrailingDecoders.TryDecode(this, _trailingRaw) is { } decoded)
+            {
+                Trailing = decoded;
+                _trailingRaw = [];
+            }
 
             var check = new SaveWriter(RawData.Length + 16);
             WriteParsedData(check);

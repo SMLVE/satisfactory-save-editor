@@ -7,6 +7,7 @@ using SatisfactorySaveEditor.App.Services;
 using SatisfactorySaveEditor.App.ViewModels.Inventory;
 using SatisfactorySaveEditor.App.ViewModels.Players;
 using SatisfactorySaveEditor.Domain.Map;
+using SatisfactorySaveEditor.Domain.Structures;
 
 namespace SatisfactorySaveEditor.App.ViewModels.Map;
 
@@ -46,17 +47,53 @@ public sealed partial class MapViewModel : ObservableObject
             new(MapMarkerKind.Logistics, "Splitters & mergers", Count(MapMarkerKind.Logistics), false, ApplyFilter),
             new(MapMarkerKind.Building, "Other buildings", Count(MapMarkerKind.Building), true, ApplyFilter),
         ];
+        _powerLines = document.Editor.Map.PowerLines;
+        PowerLinesLabel = $"Power lines ({_powerLines.Count:N0})";
+        _structures = document.Editor.Structures.All;
+        StructuresLabel = document.Editor.Structures.IsUndecoded
+            ? "Foundations & walls (not readable in this save)"
+            : $"Foundations & walls ({_structures.Count:N0})";
         ApplyFilter();
     }
 
+    private readonly IReadOnlyList<MapLine> _powerLines;
+    private readonly IReadOnlyList<Structure> _structures;
+
+    public string StructuresLabel { get; }
+    public IBrush StructuresBrush => MapControl.StructureBrush;
+
+    [ObservableProperty] private bool _showStructures = true;
+    [ObservableProperty] private IReadOnlyList<Structure> _visibleStructures = [];
+
+    partial void OnShowStructuresChanged(bool value) => VisibleStructures = value ? _structures : [];
+
     public IReadOnlyList<MapLayer> Layers { get; }
+    public string PowerLinesLabel { get; }
+    public IBrush PowerLinesBrush => MapControl.PowerLineBrush;
+
+    [ObservableProperty] private bool _showPowerLines = true;
+    [ObservableProperty] private IReadOnlyList<MapLine> _visibleLines = [];
+
+    /// <summary>What the selected building is wired to, e.g. "Power Pole Mk1 ↔ Constructor Mk1".</summary>
+    public IReadOnlyList<string> PowerConnections =>
+        SelectedMarker is { } m
+            ? _powerLines.Where(l => l.FromBuilding == m.Actor || l.ToBuilding == m.Actor || l.Line == m.Actor)
+                .Select(l => $"{Friendly(l.FromBuilding)} ↔ {Friendly(l.ToBuilding)}").ToList()
+            : [];
+
+    public bool HasPowerConnections => PowerConnections.Count > 0;
+
+    partial void OnShowPowerLinesChanged(bool value) => VisibleLines = value ? _powerLines : [];
+
+    private static string Friendly(Core.Model.ActorObject actor) => Domain.Inventory.ContainerService.FriendlyClassName(actor.ClassName);
 
     [ObservableProperty] private IReadOnlyList<MapMarker> _visibleMarkers = [];
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private string _summary = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSelection), nameof(Title), nameof(Subtitle), nameof(HasNoInventory))]
+    [NotifyPropertyChangedFor(nameof(HasSelection), nameof(Title), nameof(Subtitle), nameof(HasNoInventory),
+        nameof(PowerConnections), nameof(HasPowerConnections))]
     private MapMarker? _selectedMarker;
 
     /// <summary>Editor for the selected player (health, position, inventories).</summary>
@@ -115,6 +152,8 @@ public sealed partial class MapViewModel : ObservableObject
                                              || HoldsItem(m, search)))
             .ToList();
         Summary = $"{VisibleMarkers.Count:N0} of {_all.Count:N0} objects shown";
+        VisibleLines = ShowPowerLines ? _powerLines : [];
+        VisibleStructures = ShowStructures ? _structures : [];
     }
 
     /// <summary>Search also matches containers and players carrying an item, e.g. "Motor".</summary>

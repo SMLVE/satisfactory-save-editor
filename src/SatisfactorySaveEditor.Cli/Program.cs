@@ -71,8 +71,12 @@ switch (args[0])
         Console.WriteLine($"Items with state  : {stateful.Count}");
         foreach (var i in stateful.Take(3))
             Console.WriteLine($"  {i.ItemClass} {i.StateType}: {(i.State is null ? $"RAW [{i.StateData.Length}]" : string.Join(", ", i.State))}");
-        var trailing = objects.Where(o => o.IsParsed && o.TrailingData.Length > 0).ToList();
-        Console.WriteLine($"Objects with trailing data: {trailing.Count}");
+        var decoded = objects.Where(o => o.Trailing is not null).ToList();
+        Console.WriteLine($"Decoded trailing  : {decoded.Count}");
+        foreach (var g in decoded.GroupBy(o => (o.ClassName, Kind: o.Trailing!.GetType().Name)))
+            Console.WriteLine($"  {g.Count(),6}  {g.Key.ClassName} ({g.Key.Kind})");
+        var trailing = objects.Where(o => o.IsParsed && o.Trailing is null && o.TrailingData.Length > 0).ToList();
+        Console.WriteLine($"Objects with raw trailing data: {trailing.Count}");
         foreach (var g in trailing.GroupBy(o => o.ClassName).OrderByDescending(g => g.Count()).Take(15))
             Console.WriteLine($"  {g.Count(),6}  {g.Key} (avg {g.Average(o => o.TrailingData.Length):F0} bytes)");
         return 0;
@@ -193,11 +197,22 @@ switch (args[0])
                 .Where(v => v.Value.PathName is { } p && owned.Contains(p)).Select(v => v.Value.PathName).ToList();
             var trailing = System.Text.Encoding.Latin1.GetString(o.TrailingData);
             hits.AddRange(owned.Where(n => trailing.Contains(n)).Select(n => $"{n} (in trailing data)"));
-            foreach (var h in hits)
-                Console.WriteLine($"  {o.ClassName} {o.InstanceName![(o.InstanceName.LastIndexOf('.') + 1)..]} -> {h![(h.LastIndexOf('.') + 1)..]}");
+            var name = o.InstanceName ?? "";
+            foreach (var h in hits.OfType<string>())
+                Console.WriteLine($"  {o.ClassName} {name[(name.LastIndexOf('.') + 1)..]} -> {h[(h.LastIndexOf('.') + 1)..]}");
         }
         var levels = save.Body.Levels.Where(l => l.Collectables.Concat(l.Collectables2).Any(c => owned.Contains(c.PathName ?? ""))).Count();
         Console.WriteLine($"  listed in {levels} level collectable lists");
+        return 0;
+    }
+
+    case "trailing":
+    {
+        // trailing <save> <class name> <output file>: writes the first such object's trailing bytes.
+        var save = SaveFile.Load(path);
+        var obj = save.Body.AllObjects.First(o => o.ClassName == args[2]);
+        File.WriteAllBytes(args[3], obj.TrailingData);
+        Console.WriteLine($"Wrote {obj.TrailingData.Length} bytes of {obj.InstanceName} trailing data to {args[3]}");
         return 0;
     }
 
