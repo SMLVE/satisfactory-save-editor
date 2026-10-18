@@ -48,7 +48,10 @@ public sealed class ProgressionService(SaveEditor editor)
         UnlockSubsystem.Properties.Get<IntValue>(ArmSlotsProperty)?.Value
         ?? (editor.Players.All is [var first, ..] ? first.EquipmentSlots.GetValueOrDefault("Hands")?.Size : null) ?? 1;
 
-    /// <summary>Unlocks a schematic by class name (e.g. <c>Schematic_3-4_C</c>) or path. Requires game data.</summary>
+    /// <summary>
+    /// Unlocks a schematic by class name (e.g. <c>Schematic_3-4_C</c>) or path. Requires game data.
+    /// Every effect is checked before anything is written, so an unlock that throws leaves the save unchanged.
+    /// </summary>
     public UnlockResult Unlock(string schematicClassOrPath)
     {
         var schematic = editor.RequireGameData().FindSchematic(schematicClassOrPath)
@@ -60,7 +63,10 @@ public sealed class ProgressionService(SaveEditor editor)
 
         var applied = new List<string>();
         var skipped = new List<string>();
-        AddPaths(SchematicManager, "mPurchasedSchematics", [schematic.ClassPath]);
+        var schematicManager = SchematicManager;
+        // First resolve the objects each effect edits and check it can be applied; the edits run afterwards.
+        var edits = new List<Action>();
+        int inventorySlots = InventorySlots, armSlots = ArmEquipmentSlots;
 
         foreach (var unlock in schematic.Unlocks)
         {
@@ -68,26 +74,45 @@ public sealed class ProgressionService(SaveEditor editor)
             {
                 case "BP_UnlockRecipe_C":
                 case "BP_UnlockBlueprints_C":
-                    applied.Add($"{AddPaths(RecipeManager, "mAvailableRecipes", unlock.Paths)} recipes");
+                {
+                    var recipeManager = RecipeManager;
+                    edits.Add(() => applied.Add($"{AddPaths(recipeManager, "mAvailableRecipes", unlock.Paths)} recipes"));
                     break;
+                }
                 case "BP_UnlockItemDescriptor_C":
-                    applied.Add($"{AddPaths(RecipeManager, "mAvailableItemDescriptors", unlock.Paths)} item descriptors");
+                {
+                    var recipeManager = RecipeManager;
+                    edits.Add(() => applied.Add($"{AddPaths(recipeManager, "mAvailableItemDescriptors", unlock.Paths)} item descriptors"));
                     break;
+                }
                 case "BP_UnlockEmote_C":
-                    applied.Add($"{AddPaths(UnlockSubsystem, "mUnlockedEmotes", unlock.Paths)} emotes");
+                {
+                    var unlockSubsystem = UnlockSubsystem;
+                    edits.Add(() => applied.Add($"{AddPaths(unlockSubsystem, "mUnlockedEmotes", unlock.Paths)} emotes"));
                     break;
+                }
                 case "BP_UnlockInventorySlot_C":
-                    SetInventorySlots(InventorySlots + unlock.Amount);
-                    applied.Add($"{unlock.Amount} inventory slots");
+                {
+                    var resize = PrepareInventorySlots(inventorySlots += unlock.Amount);
+                    edits.Add(() => { resize(); applied.Add($"{unlock.Amount} inventory slots"); });
                     break;
+                }
                 case "BP_UnlockArmEquipmentSlot_C":
-                    SetArmEquipmentSlots(ArmEquipmentSlots + unlock.Amount);
-                    applied.Add($"{unlock.Amount} hand slots");
+                {
+                    var resize = PrepareArmEquipmentSlots(armSlots += unlock.Amount);
+                    edits.Add(() => { resize(); applied.Add($"{unlock.Amount} hand slots"); });
                     break;
+                }
                 case var kind when FlagUnlocks.TryGetValue(kind, out var flag):
-                    UnlockSubsystem.Properties.GetOrAdd(flag, PropertyTypes.Bool, () => new BoolValue(false)).Value = true;
-                    applied.Add(flag);
+                {
+                    var unlockSubsystem = UnlockSubsystem;
+                    edits.Add(() =>
+                    {
+                        unlockSubsystem.Properties.GetOrAdd(flag, PropertyTypes.Bool, () => new BoolValue(false)).Value = true;
+                        applied.Add(flag);
+                    });
                     break;
+                }
                 case var kind when NoEffectUnlocks.Contains(kind):
                     break;
                 default:
@@ -95,6 +120,10 @@ public sealed class ProgressionService(SaveEditor editor)
                     break;
             }
         }
+
+        AddPaths(schematicManager, "mPurchasedSchematics", [schematic.ClassPath]);
+        foreach (var edit in edits)
+            edit();
         return new UnlockResult(schematic, false, applied, skipped);
     }
 
@@ -107,19 +136,34 @@ public sealed class ProgressionService(SaveEditor editor)
             .ToList();
 
     /// <summary>Sets the main inventory size and resizes every player's inventory to match.</summary>
-    public void SetInventorySlots(int total)
-    {
-        foreach (var player in editor.Players.All.Where(p => p.Pawn is not null))
-            player.Inventory.Resize(total);
-        UnlockSubsystem.Properties.GetOrAdd(MainInventoryBaseSlots, PropertyTypes.Int, () => new IntValue(0)).Value = total;
-    }
+    public void SetInventorySlots(int total) => PrepareInventorySlots(total)();
 
     /// <summary>Sets the number of hand equipment slots and resizes every player's hand slot inventory.</summary>
-    public void SetArmEquipmentSlots(int total)
+    public void SetArmEquipmentSlots(int total) => PrepareArmEquipmentSlots(total)();
+
+    private Action PrepareInventorySlots(int total) =>
+        PrepareSlots(editor.Players.All.Where(p => p.Pawn is not null).Select(p => p.Inventory), MainInventoryBaseSlots, total);
+
+    private Action PrepareArmEquipmentSlots(int total) =>
+        PrepareSlots(editor.Players.All.Where(p => p.Pawn is not null)
+            .Select(p => p.EquipmentSlots.GetValueOrDefault("Hands")).OfType<Inventory.Inventory>(), ArmSlotsProperty, total);
+
+    /// <summary>
+    /// Checks that every inventory can be resized to <paramref name="total"/> (throwing before anything changes)
+    /// and returns the edit that resizes them and stores the new count.
+    /// </summary>
+    private Action PrepareSlots(IEnumerable<Inventory.Inventory> inventories, string countProperty, int total)
     {
-        foreach (var player in editor.Players.All.Where(p => p.Pawn is not null))
-            player.EquipmentSlots.GetValueOrDefault("Hands")?.Resize(total);
-        UnlockSubsystem.Properties.GetOrAdd(ArmSlotsProperty, PropertyTypes.Int, () => new IntValue(0)).Value = total;
+        var resized = inventories.ToList();
+        foreach (var inventory in resized)
+            inventory.EnsureCanResize(total);
+        var unlockSubsystem = UnlockSubsystem;
+        return () =>
+        {
+            foreach (var inventory in resized)
+                inventory.Resize(total);
+            unlockSubsystem.Properties.GetOrAdd(countProperty, PropertyTypes.Int, () => new IntValue(0)).Value = total;
+        };
     }
 
     private static List<string> PathsIn(SaveObject obj, string property) =>

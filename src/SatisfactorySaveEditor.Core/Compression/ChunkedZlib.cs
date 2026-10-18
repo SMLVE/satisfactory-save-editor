@@ -22,6 +22,7 @@ public static class ChunkedZlib
         using var output = new MemoryStream();
         while (!r.AtEnd)
         {
+            int chunkStart = r.Position;
             uint magic = r.ReadUInt32();
             if (magic != PackageSignature)
                 throw new SaveFormatException($"Bad chunk signature 0x{magic:X8} at offset {r.Position - 4}.");
@@ -39,10 +40,21 @@ public static class ChunkedZlib
             if (compressedSize != compressedSize2 || uncompressedSize != uncompressedSize2)
                 throw new SaveFormatException($"Chunk size fields disagree at offset {r.Position - 32}.");
 
-            byte[] compressed = r.ReadBytes(checked((int)compressedSize));
+            if (compressedSize < 0 || compressedSize > r.Remaining || uncompressedSize < 0)
+                throw new SaveFormatException(
+                    $"Chunk at offset {chunkStart} declares {compressedSize} compressed and {uncompressedSize} uncompressed bytes, but {r.Remaining} remain.");
+
+            byte[] compressed = r.ReadBytes((int)compressedSize);
             long before = output.Length;
-            using (var z = new ZLibStream(new MemoryStream(compressed), CompressionMode.Decompress))
+            try
+            {
+                using var z = new ZLibStream(new MemoryStream(compressed), CompressionMode.Decompress);
                 z.CopyTo(output);
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new SaveFormatException($"Chunk at offset {chunkStart} is not valid compressed data: {ex.Message}", ex);
+            }
             if (output.Length - before != uncompressedSize)
                 throw new SaveFormatException(
                     $"Chunk decompressed to {output.Length - before} bytes, expected {uncompressedSize}.");

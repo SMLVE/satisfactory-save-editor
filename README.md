@@ -59,7 +59,7 @@ Tips:
 - **Version:** saves from **Satisfactory 1.1 and later**: save header version 14, save version 60 (Unreal Engine 5.6).
 - **Older objects:** objects that older versions carried forward in a save (legacy property tags) are
   read and written too.
-- **Older saves:** other versions are refused rather than risk corrupting them.
+- **Other versions:** older and newer save versions are refused rather than risk corrupting them.
 
 ## What is verified in game
 

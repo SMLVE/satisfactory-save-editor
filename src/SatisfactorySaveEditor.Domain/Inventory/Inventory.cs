@@ -99,7 +99,7 @@ public sealed class Inventory
     /// </summary>
     public void Resize(int newSize)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(newSize);
+        EnsureCanResize(newSize);
         int delta = newSize - Size;
         if (delta == 0)
             return;
@@ -112,8 +112,6 @@ public sealed class Inventory
 
         if (delta > 0)
         {
-            if (Size == 0)
-                throw new InvalidOperationException("Cannot grow an inventory that has no slot to use as a template.");
             for (int i = 0; i < delta; i++)
             {
                 var stack = PropertyCloner.Clone(Stacks.Elements[0]);
@@ -128,9 +126,6 @@ public sealed class Inventory
         }
         else
         {
-            for (int i = newSize; i < Size; i++)
-                if (!GetSlot(i).IsEmpty)
-                    throw new InvalidOperationException($"Cannot shrink to {newSize} slots: slot {i} is not empty.");
             Stacks.Elements.RemoveRange(newSize, -delta);
             foreach (var array in perSlotArrays)
                 array.Elements.RemoveRange(newSize, -delta);
@@ -138,6 +133,17 @@ public sealed class Inventory
 
         var diff = Component.Properties.GetOrAdd(AdjustedSizeDiffProperty, PropertyTypes.Int, () => new IntValue(0));
         diff.Value += delta;
+    }
+
+    /// <summary>Throws when <see cref="Resize"/> to <paramref name="newSize"/> would fail, without changing anything.</summary>
+    internal void EnsureCanResize(int newSize)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(newSize);
+        if (newSize > Size && Size == 0)
+            throw new InvalidOperationException("Cannot grow an inventory that has no slot to use as a template.");
+        for (int i = newSize; i < Size; i++)
+            if (!GetSlot(i).IsEmpty)
+                throw new InvalidOperationException($"Cannot shrink to {newSize} slots: slot {i} is not empty.");
     }
 
     private int SlotLimit(int index, string classPath)

@@ -20,6 +20,16 @@ public class GameDataTests
         Assert.Null(TestEditors.GameData.FindItem("Desc_SmelterMk1_C"));
     }
 
+    [Theory]
+    [InlineData("{not json")]
+    [InlineData("""{"NativeClass": "x"}""")]
+    [InlineData("""[{"Classes": []}]""")]
+    [InlineData("""[{"NativeClass": 1, "Classes": []}]""")]
+    public void Parse_NotDocsJson_ThrowsGameDataException(string json)
+    {
+        Assert.Throws<Domain.GameData.GameDataException>(() => Domain.GameData.GameData.Parse(json));
+    }
+
     [Fact]
     public void Schematics_ParseUnlocks()
     {
