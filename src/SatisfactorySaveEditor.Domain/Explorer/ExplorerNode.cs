@@ -31,6 +31,7 @@ public sealed class ExplorerNode
     {
         Name = name;
         TypeName = typeName;
+        FullTypeName = typeName;
         _getValue = getValue;
         EditKind = setValue is null ? ExplorerEditKind.None : editKind;
         _setValue = setValue;
@@ -38,8 +39,14 @@ public sealed class ExplorerNode
     }
 
     public string Name { get; }
+    /// <summary>Readable type, e.g. <c>InventoryStack[]</c>.</summary>
     public string TypeName { get; }
+    /// <summary>Full serialized type, e.g. <c>ArrayProperty&lt;StructProperty&lt;InventoryStack&lt;/Script/FactoryGame&gt;&gt;&gt;</c>.</summary>
+    public string FullTypeName { get; internal set; }
     public string ValueText => _getValue();
+    /// <summary>Optional human-readable hint, e.g. the display name of a referenced item or recipe.</summary>
+    public string? Hint => HintSource?.Invoke();
+    internal Func<string?>? HintSource { get; init; }
     public ExplorerEditKind EditKind { get; }
     public bool HasChildren => _buildChildren is not null;
 
@@ -92,12 +99,64 @@ public sealed class ExplorerNode
     public override string ToString() => $"{Name} = {ValueText}";
 }
 
-/// <summary>Builds explorer nodes for save objects and property values.</summary>
-public static class ExplorerTree
+/// <summary>
+/// Builds explorer nodes for save objects and property values. With game data, references to items,
+/// recipes and schematics get display-name hints.
+/// </summary>
+public sealed class ExplorerTree
 {
     private const int MaxHexPreview = 64;
 
-    public static IReadOnlyList<ExplorerNode> ForObject(SaveObject obj)
+    private readonly GameData.GameData? _gameData;
+
+    private ExplorerTree(GameData.GameData? gameData) => _gameData = gameData;
+
+    public static IReadOnlyList<ExplorerNode> ForObject(SaveObject obj, GameData.GameData? gameData = null) =>
+        new ExplorerTree(gameData).BuildObject(obj);
+
+    public static IReadOnlyList<ExplorerNode> ForProperties(PropertyList properties, GameData.GameData? gameData = null) =>
+        new ExplorerTree(gameData).BuildProperties(properties);
+
+    /// <summary>Readable form of a property type: int, string, InventoryStack[], Map&lt;object, int&gt;, ...</summary>
+    public static string ShortTypeName(PropertyTypeName type) => type.Name switch
+    {
+        "IntProperty" => "int",
+        "Int8Property" => "int8",
+        "Int16Property" => "int16",
+        "UInt16Property" => "uint16",
+        "UInt32Property" => "uint32",
+        "Int64Property" => "int64",
+        "UInt64Property" => "uint64",
+        "FloatProperty" => "float",
+        "DoubleProperty" => "double",
+        "BoolProperty" => "bool",
+        "StrProperty" => "string",
+        "NameProperty" => "name",
+        "TextProperty" => "text",
+        "ObjectProperty" or "WeakObjectProperty" => "object",
+        "InterfaceProperty" => "interface",
+        "SoftObjectProperty" or "SoftClassProperty" => "soft object",
+        "ByteProperty" => type.Param(0) is { Name: { } e and not "None" } ? e : "byte",
+        "EnumProperty" => type.Param(0)?.Name ?? "enum",
+        "StructProperty" => type.Param(0)?.Name ?? "struct",
+        "ArrayProperty" => $"{(type.Param(0) is { } e ? ShortTypeName(e) : "?")}[]",
+        "SetProperty" => $"Set<{(type.Param(0) is { } e ? ShortTypeName(e) : "?")}>",
+        "MapProperty" => $"Map<{(type.Param(0) is { } k ? ShortTypeName(k) : "?")}, {(type.Param(1) is { } v ? ShortTypeName(v) : "?")}>",
+        _ => type.Name ?? "?",
+    };
+
+    /// <summary>Display name of an item, recipe or schematic class path, when game data knows it.</summary>
+    private string? DisplayNameOf(string? path)
+    {
+        if (_gameData is null || string.IsNullOrEmpty(path) || !path.EndsWith("_C"))
+            return null;
+        string className = GameData.GameData.ClassNameOf(path);
+        return _gameData.Items.GetValueOrDefault(className)?.DisplayName
+               ?? _gameData.Recipes.GetValueOrDefault(className)?.DisplayName
+               ?? _gameData.Schematics.GetValueOrDefault(className)?.DisplayName;
+    }
+
+    private IReadOnlyList<ExplorerNode> BuildObject(SaveObject obj)
     {
         var nodes = new List<ExplorerNode>();
         if (obj is ActorObject actor)
@@ -121,17 +180,24 @@ public static class ExplorerTree
             return nodes;
         }
 
-        nodes.AddRange(ForProperties(obj.Properties));
+        nodes.AddRange(BuildProperties(obj.Properties));
         if (obj.TrailingData.Length > 0)
             nodes.Add(Leaf("Trailing data", $"{obj.TrailingData.Length} bytes", () => Hex(obj.TrailingData)));
         return nodes;
     }
 
-    public static IReadOnlyList<ExplorerNode> ForProperties(PropertyList properties) =>
+    private IReadOnlyList<ExplorerNode> BuildProperties(PropertyList properties) =>
         properties.Select(p => ForValue(p.Tag.ArrayIndex == 0 ? p.Name ?? "?" : $"{p.Name}[{p.Tag.ArrayIndex}]",
-            p.Type.ToString(), p.Value)).ToList();
+            p.Type, p.Value)).ToList();
 
-    private static ExplorerNode ForValue(string name, string typeName, PropertyValue value, ArrayValue? parentArray = null)
+    private ExplorerNode ForValue(string name, PropertyTypeName type, PropertyValue value, ArrayValue? parentArray = null)
+    {
+        var node = BuildValue(name, ShortTypeName(type), value, parentArray);
+        node.FullTypeName = type.ToString();
+        return node;
+    }
+
+    private ExplorerNode BuildValue(string name, string typeName, PropertyValue value, ArrayValue? parentArray)
     {
         switch (value)
         {
@@ -157,9 +223,9 @@ public static class ExplorerTree
                 return new ExplorerNode(name, typeName, () => v.Value.ToString(), buildChildren: () =>
                 [
                     TextField("Level", () => v.Value.LevelName, s => v.Value = v.Value with { LevelName = s }),
-                    TextField("Path", () => v.Value.PathName, s => v.Value = v.Value with { PathName = s }),
+                    TextField("Path", () => v.Value.PathName, s => v.Value = v.Value with { PathName = s }, () => DisplayNameOf(v.Value.PathName)),
                 ])
-                { ParentArray = parentArray, Value = v };
+                { ParentArray = parentArray, Value = v, HintSource = () => DisplayNameOf(v.Value.PathName) };
             case SoftObjectValue v:
                 return new ExplorerNode(name, typeName, v.ToString, buildChildren: () =>
                 [
@@ -167,13 +233,13 @@ public static class ExplorerTree
                     TextField("Path", () => v.Value.PathName, s => v.Value = v.Value with { PathName = s }),
                     TextField("SubPath", () => v.SubPath, s => v.SubPath = s),
                 ])
-                { ParentArray = parentArray, Value = v };
+                { ParentArray = parentArray, Value = v, HintSource = () => DisplayNameOf(v.Value.PathName) };
             case TextValue v:
                 return new ExplorerNode(name, typeName, v.ToString, buildChildren: () => TextChildren(v))
                 { ParentArray = parentArray, Value = v };
             case PropertyListStruct v:
                 return new ExplorerNode(name, typeName, () => $"{v.StructName} ({v.Properties.Count} properties)",
-                    buildChildren: () => ForProperties(v.Properties))
+                    buildChildren: () => BuildProperties(v.Properties))
                 { ParentArray = parentArray, Value = v };
             case NativeStruct v:
                 return new ExplorerNode(name, typeName, v.ToString, buildChildren: () => NativeFields(v))
@@ -181,26 +247,29 @@ public static class ExplorerTree
             case InventoryItemStruct v:
                 return new ExplorerNode(name, typeName, v.ToString, buildChildren: () =>
                 {
-                    var children = new List<ExplorerNode> { TextField("ItemClass", () => v.ItemClass, s => v.ItemClass = s) };
+                    var children = new List<ExplorerNode>
+                    {
+                        TextField("ItemClass", () => v.ItemClass, s => v.ItemClass = s, () => DisplayNameOf(v.ItemClass)),
+                    };
                     if (v.State is not null)
-                        children.Add(Group("State", v.StateType ?? "", () => ForProperties(v.State)));
+                        children.Add(Group("State", v.StateType ?? "", () => BuildProperties(v.State)));
                     return children;
                 })
-                { ParentArray = parentArray, Value = v };
+                { ParentArray = parentArray, Value = v, HintSource = () => DisplayNameOf(v.ItemClass) };
             case ArrayValue v:
                 return new ExplorerNode(name, typeName, () => $"{v.Elements.Count} elements", buildChildren: () =>
-                    v.Elements.Select((e, i) => ForValue($"[{i}]", v.ElementType.ToString(), e, v)).ToList())
+                    v.Elements.Select((e, i) => ForValue($"[{i}]", v.ElementType, e, v)).ToList())
                 { Array = v, ParentArray = parentArray, Value = v };
             case SetValue v:
                 return new ExplorerNode(name, typeName, () => $"{v.Elements.Count} elements", buildChildren: () =>
-                    v.Elements.Select((e, i) => ForValue($"[{i}]", v.ElementType.ToString(), e)).ToList())
+                    v.Elements.Select((e, i) => ForValue($"[{i}]", v.ElementType, e)).ToList())
                 { ParentArray = parentArray, Value = v };
             case MapValue v:
                 return new ExplorerNode(name, typeName, () => $"{v.Entries.Count} entries", buildChildren: () =>
-                    v.Entries.Select((e, i) => Group($"[{i}] {Short(e.Key)}", v.ValueType.ToString(), () =>
+                    v.Entries.Select((e, i) => Group($"[{i}] {Short(e.Key)}", ShortTypeName(v.ValueType), () =>
                     [
-                        ForValue("Key", v.KeyType.ToString(), e.Key),
-                        ForValue("Value", v.ValueType.ToString(), e.Value),
+                        ForValue("Key", v.KeyType, e.Key),
+                        ForValue("Value", v.ValueType, e.Value),
                     ])).ToList())
                 { ParentArray = parentArray, Value = v };
             case RawStruct v:
@@ -287,8 +356,8 @@ public static class ExplorerTree
     private static ExplorerNode Scalar(string name, string typeName, PropertyValue value, Func<string> get, Func<string, string?> set, ArrayValue? parentArray) =>
         new(name, typeName, get, ExplorerEditKind.Text, set) { ParentArray = parentArray, Value = value };
 
-    private static ExplorerNode TextField(string name, Func<string?> get, Action<string?> set) =>
-        new(name, "String", () => get() ?? "", ExplorerEditKind.Text, t => Set(() => set(t.Length == 0 ? null : t)));
+    private static ExplorerNode TextField(string name, Func<string?> get, Action<string?> set, Func<string?>? hint = null) =>
+        new(name, "string", () => get() ?? "", ExplorerEditKind.Text, t => Set(() => set(t.Length == 0 ? null : t))) { HintSource = hint };
 
     private static ExplorerNode Leaf(string name, string typeName, Func<string> get) => new(name, typeName, get);
 

@@ -31,7 +31,9 @@ public sealed partial class PropertyNodeViewModel : ObservableObject
     /// <summary>Path from the object's root, e.g. "mInventoryStacks › [0] › NumItems".</summary>
     public string Path => Parent is null ? Name : $"{Parent.Path} › {Name}";
     public string TypeName => Node?.TypeName ?? "";
+    public string FullTypeName => Node?.FullTypeName ?? "";
     public string ValueText => Node?.ValueText ?? "";
+    public string? Hint => Node?.Hint;
 
     [ObservableProperty] private bool _isExpanded;
 
@@ -62,6 +64,7 @@ public sealed partial class PropertyNodeViewModel : ObservableObject
     public void RefreshValue()
     {
         OnPropertyChanged(nameof(ValueText));
+        OnPropertyChanged(nameof(Hint));
         Parent?.RefreshValue();
     }
 }

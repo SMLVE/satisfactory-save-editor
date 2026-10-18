@@ -44,8 +44,12 @@
           <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:PropertyNodeViewModel">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding ValueText}" MaxWidth="520" TextTrimming="CharacterEllipsis" />
-              <TextBlock Text="{Binding TypeName}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding ValueText}" MaxWidth="520" TextTrimming="CharacterEllipsis"
+                         ToolTip.Tip="{Binding ValueText}" />
+              <TextBlock Text="{Binding Hint}" Foreground="#2B7A9E" FontStyle="Italic"
+                         IsVisible="{Binding Hint, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <TextBlock Text="{Binding TypeName}" Classes="muted" FontSize="11" VerticalAlignment="Center"
+                         ToolTip.Tip="{Binding FullTypeName}" />
             </StackPanel>
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
@@ -64,7 +68,9 @@
         <StackPanel Spacing="10" IsVisible="{Binding HasSelectedNode}">
           <StackPanel Spacing="2">
             <TextBlock Text="{Binding SelectedNode.Name, FallbackValue=''}" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding SelectedNode.TypeName, FallbackValue=''}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding SelectedNode.Hint, FallbackValue=''}" Foreground="#2B7A9E" FontStyle="Italic" TextWrapping="Wrap"
+                       IsVisible="{Binding SelectedNode.Hint, Converter={x:Static ObjectConverters.IsNotNull}, FallbackValue=False}" />
+            <TextBlock Text="{Binding SelectedNode.FullTypeName, FallbackValue=''}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
           </StackPanel>
 
           <StackPanel Spacing="6" IsVisible="{Binding CanEditText}">

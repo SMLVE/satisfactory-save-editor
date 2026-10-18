@@ -87,7 +87,7 @@ public sealed partial class ExplorerViewModel : ObservableObject
         Nodes.Clear();
         if (value is null)
             return;
-        foreach (var node in ExplorerTree.ForObject(value.Object))
+        foreach (var node in ExplorerTree.ForObject(value.Object, _document.Editor.GameData))
             Nodes.Add(new PropertyNodeViewModel(node, null));
     }
 

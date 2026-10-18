@@ -133,6 +133,56 @@ public class ExplorerTests
         Assert.False(reloaded.Single("BP_UnlockSubsystem_C").Properties.Get<BoolValue>("mIsMapUnlocked")!.Value);
     }
 
+    [Fact]
+    public void TypeNames_AreShortWithFullFormAvailable()
+    {
+        var editor = TestEditors.Open("sample2.sav");
+        var nodes = ExplorerTree.ForObject(editor.Find(Inventory)!);
+
+        var stacks = Path(nodes, "mInventoryStacks");
+        Assert.Equal("InventoryStack[]", stacks.TypeName);
+        Assert.Equal("ArrayProperty<StructProperty<InventoryStack</Script/FactoryGame>>>", stacks.FullTypeName);
+        Assert.Equal("int", Path(nodes, "mInventoryStacks", "[0]", "NumItems").TypeName);
+        Assert.Equal("InventoryItem", Path(nodes, "mInventoryStacks", "[0]", "Item").TypeName);
+        Assert.Equal("object[]", Path(nodes, "mAllowedItemDescriptors").TypeName);
+    }
+
+    [Theory]
+    [InlineData("MapProperty", "Map<object, int>")]
+    [InlineData("SetProperty", "Set<uint32>")]
+    [InlineData("ByteProperty", "EGamePhase")]
+    public void ShortTypeName_FormatsContainersAndEnums(string kind, string expected)
+    {
+        var type = kind switch
+        {
+            "MapProperty" => new PropertyTypeName("MapProperty", new("ObjectProperty"), new("IntProperty")),
+            "SetProperty" => new PropertyTypeName("SetProperty", new PropertyTypeName("UInt32Property")),
+            _ => new PropertyTypeName("ByteProperty", new PropertyTypeName("EGamePhase", new PropertyTypeName("/Script/FactoryGame"))),
+        };
+        Assert.Equal(expected, ExplorerTree.ShortTypeName(type));
+    }
+
+    [Fact]
+    public void ItemReferences_GetDisplayNameHints()
+    {
+        var editor = TestEditors.Open("sample2.sav");
+        var nodes = ExplorerTree.ForObject(editor.Find(Inventory)!, TestEditors.GameData);
+
+        Assert.Equal("Iron Plate", Path(nodes, "mInventoryStacks", "[0]", "Item").Hint);
+        Assert.Equal("Iron Plate", Path(nodes, "mInventoryStacks", "[0]", "Item", "ItemClass").Hint);
+        Assert.Null(Path(nodes, "mInventoryStacks", "[2]", "Item").Hint); // empty slot
+        Assert.Null(Path(ExplorerTree.ForObject(editor.Find(Inventory)!), "mInventoryStacks", "[0]", "Item").Hint); // no game data
+    }
+
+    [Fact]
+    public void RecipeReferences_GetDisplayNameHints()
+    {
+        var editor = TestEditors.Open("sample.sav");
+        var recipes = Path(ExplorerTree.ForObject(editor.Single("FGRecipeManager"), TestEditors.GameData), "mAvailableRecipes");
+
+        Assert.Contains(recipes.Children, n => n.Hint == "Iron Plate" && n.ValueText.EndsWith("Recipe_IronPlate_C"));
+    }
+
     private static ExplorerNode Path(IReadOnlyList<ExplorerNode> nodes, params string[] names)
     {
         ExplorerNode? node = null;
