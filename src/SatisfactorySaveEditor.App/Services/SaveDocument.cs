@@ -3,7 +3,7 @@ using SatisfactorySaveEditor.Domain;
 
 namespace SatisfactorySaveEditor.App.Services;
 
-/// <summary>An open save: file path, parsed save, domain editor and unsaved-changes flag.</summary>
+/// <summary>An open save: file path, parsed save, domain editor, unsaved-changes flag and change log.</summary>
 public sealed class SaveDocument
 {
     private SaveDocument(string path, SaveFile save, GameDataStore gameData)
@@ -28,8 +28,15 @@ public sealed class SaveDocument
     public static Task<SaveDocument> LoadAsync(string path, GameDataStore gameData) =>
         Task.Run(() => new SaveDocument(path, SaveFile.Load(path), gameData));
 
-    public void MarkDirty()
+    private readonly List<string> _changes = [];
+
+    /// <summary>Human-readable descriptions of the edits made since the last save, oldest first.</summary>
+    public IReadOnlyList<string> Changes => _changes;
+
+    /// <summary>Records an edit for the change summary and marks the document dirty.</summary>
+    public void RecordChange(string description)
     {
+        _changes.Add(description);
         if (IsDirty)
             return;
         IsDirty = true;
@@ -60,6 +67,7 @@ public sealed class SaveDocument
 
         Path = path;
         IsDirty = false;
+        _changes.Clear();
         DirtyChanged?.Invoke(this, EventArgs.Empty);
         return backup;
     }

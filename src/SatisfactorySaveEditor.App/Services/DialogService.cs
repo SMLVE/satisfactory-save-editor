@@ -12,6 +12,8 @@ public interface IDialogService
     Task ShowMessageAsync(string title, string message);
     /// <summary>Asks a yes/no/cancel question. Returns true, false, or null for cancel.</summary>
     Task<bool?> AskAsync(string title, string message, string yes, string no);
+    /// <summary>Shows the list of pending changes and asks whether to write them. Returns true to save.</summary>
+    Task<bool> ConfirmSaveAsync(string fileName, IReadOnlyList<string> changes);
 }
 
 public sealed class DialogService(Window owner) : IDialogService
@@ -63,16 +65,30 @@ public sealed class DialogService(Window owner) : IDialogService
     public Task<bool?> AskAsync(string title, string message, string yes, string no) =>
         ShowDialog(title, message, [(yes, true), (no, false), ("Cancel", null)]);
 
+    public async Task<bool> ConfirmSaveAsync(string fileName, IReadOnlyList<string> changes)
+    {
+        var list = new ListBox
+        {
+            ItemsSource = changes.Select((c, i) => $"{i + 1}. {c}").ToList(),
+            MaxHeight = 360,
+            FontSize = 12,
+        };
+        var noun = changes.Count == 1 ? "change" : "changes";
+        return await ShowDialog("Save changes", $"Write {changes.Count} {noun} to {fileName}? A backup of the current file is made first.",
+            [("Save", true), ("Cancel", null)], list, width: 640) == true;
+    }
+
     private async Task<IStorageFolder?> StartFolder(string path) =>
         Directory.Exists(path) ? await owner.StorageProvider.TryGetFolderFromPathAsync(path) : null;
 
-    private async Task<bool?> ShowDialog(string title, string message, (string Label, bool? Result)[] buttons)
+    private async Task<bool?> ShowDialog(string title, string message, (string Label, bool? Result)[] buttons,
+        Control? detail = null, double width = 440)
     {
         bool? result = null;
         var dialog = new Window
         {
             Title = title,
-            Width = 440,
+            Width = width,
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -89,16 +105,12 @@ public sealed class DialogService(Window owner) : IDialogService
             };
             buttonRow.Children.Add(button);
         }
-        dialog.Content = new StackPanel
-        {
-            Margin = new(20),
-            Spacing = 16,
-            Children =
-            {
-                new TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-                buttonRow,
-            },
-        };
+        var content = new StackPanel { Margin = new(20), Spacing = 16 };
+        content.Children.Add(new TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
+        if (detail is not null)
+            content.Children.Add(detail);
+        content.Children.Add(buttonRow);
+        dialog.Content = content;
         await dialog.ShowDialog(owner);
         return result;
     }

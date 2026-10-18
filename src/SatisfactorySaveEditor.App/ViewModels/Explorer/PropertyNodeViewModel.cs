@@ -28,6 +28,8 @@ public sealed partial class PropertyNodeViewModel : ObservableObject
     public ObservableCollection<PropertyNodeViewModel> Children { get; }
 
     public string Name => Node?.Name ?? "…";
+    /// <summary>Path from the object's root, e.g. "mInventoryStacks › [0] › NumItems".</summary>
+    public string Path => Parent is null ? Name : $"{Parent.Path} › {Name}";
     public string TypeName => Node?.TypeName ?? "";
     public string ValueText => Node?.ValueText ?? "";
 

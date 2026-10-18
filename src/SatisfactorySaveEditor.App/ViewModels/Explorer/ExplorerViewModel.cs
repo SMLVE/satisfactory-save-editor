@@ -120,23 +120,29 @@ public sealed partial class ExplorerViewModel : ObservableObject
     {
         if (SelectedNode is null)
             return;
+        string before = SelectedNode.ValueText;
         if (!SelectedNode.Node.TrySetValue(text, out var error))
         {
             EditError = error;
             return;
         }
         EditError = null;
-        _document.MarkDirty();
         SelectedNode.RefreshValue();
         EditText = SelectedNode.ValueText;
+        if (SelectedNode.ValueText != before)
+            Record($"{SelectedNode.Path}: {Shorten(before)} → {Shorten(SelectedNode.ValueText)}");
     }
+
+    private void Record(string change) => _document.RecordChange($"{SelectedObject?.ShortName} › {change}");
+
+    private static string Shorten(string text) => text.Length <= 80 ? text : text[..77] + "…";
 
     [RelayCommand(CanExecute = nameof(CanAddElement))]
     private void AddElement()
     {
         var node = SelectedNode!;
         node.Node.AddElement();
-        _document.MarkDirty();
+        Record($"{node.Path}: added an element");
         node.Reload();
         node.IsExpanded = true;
     }
@@ -148,7 +154,7 @@ public sealed partial class ExplorerViewModel : ObservableObject
     {
         var node = SelectedNode!;
         node.Node.Remove();
-        _document.MarkDirty();
+        Record($"{node.Path}: removed element");
         SelectedNode = node.Parent;
         node.Parent?.Reload();
     }

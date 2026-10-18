@@ -123,17 +123,19 @@ public sealed partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     private void ApplyHealth() => Try(() =>
     {
+        string before = Format(_player.Health);
         _player.Health = ParseFloat(HealthText, "Health");
         HealthText = Format(_player.Health);
         OnPropertyChanged(nameof(Detail));
-        return ($"Health set to {HealthText}.", true);
+        return ($"Health {before} → {HealthText}.", HealthText != before);
     });
 
     [RelayCommand]
     private void ApplyPosition() => Try(() =>
     {
+        var before = _player.Position;
         _player.Position = new Vector3(ParseFloat(PositionX, "X"), ParseFloat(PositionY, "Y"), ParseFloat(PositionZ, "Z"));
-        return ("Position updated.", true);
+        return ($"Position {Format(before)} → {Format(_player.Position)}.", _player.Position != before);
     });
 
     [RelayCommand(CanExecute = nameof(CanSetSlot))]
@@ -142,7 +144,7 @@ public sealed partial class PlayerViewModel : ObservableObject
         var slot = SelectedSlot!.Slot;
         SelectedInventory!.Inventory.SetSlot(slot.Index, EditItem!.Info.ClassPath!, (int)EditCount!.Value, AllowOverstack);
         ReloadSlots(slot.Index);
-        return ($"Slot {slot.Index + 1}: {EditCount} × {EditItem.Info.DisplayName}.", true);
+        return ($"{SelectedInventory.Name} slot {slot.Index + 1}: {EditCount} × {EditItem.Info.DisplayName}.", true);
     });
 
     private bool CanSetSlot() => SelectedSlot is not null && EditItem is not null && EditCount is >= 1;
@@ -153,7 +155,7 @@ public sealed partial class PlayerViewModel : ObservableObject
         int index = SelectedSlot!.Slot.Index;
         SelectedInventory!.Inventory.ClearSlot(index);
         ReloadSlots(index);
-        return ($"Slot {index + 1} cleared.", true);
+        return ($"{SelectedInventory.Name} slot {index + 1} cleared.", true);
     });
 
     [RelayCommand]
@@ -161,7 +163,7 @@ public sealed partial class PlayerViewModel : ObservableObject
     {
         int changed = SelectedInventory!.Inventory.FillStacks();
         ReloadSlots(SelectedSlot?.Slot.Index);
-        return (changed == 0 ? "All stacks are already full." : $"Filled {changed} stacks.", changed > 0);
+        return (changed == 0 ? "All stacks are already full." : $"{SelectedInventory.Name}: filled {changed} stacks.", changed > 0);
     });
 
     private void ReloadSlots(int? reselect = null)
@@ -174,7 +176,7 @@ public sealed partial class PlayerViewModel : ObservableObject
         SelectedSlot = reselect is { } i && i < Slots.Count ? Slots[i] : null;
     }
 
-    /// <summary>Runs an edit, shows its message and marks the save dirty when something changed.</summary>
+    /// <summary>Runs an edit, shows its message and records it in the change log when something changed.</summary>
     private void Try(Func<(string Message, bool Changed)> edit)
     {
         try
@@ -183,7 +185,7 @@ public sealed partial class PlayerViewModel : ObservableObject
             Message = message;
             MessageIsError = false;
             if (changed)
-                _document.MarkDirty();
+                _document.RecordChange($"{Name}: {message}");
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException)
         {
@@ -198,4 +200,6 @@ public sealed partial class PlayerViewModel : ObservableObject
             : throw new FormatException($"{field} must be a number.");
 
     private static string Format(float value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static string Format(Vector3 v) => $"({Format(v.X)}, {Format(v.Y)}, {Format(v.Z)})";
 }

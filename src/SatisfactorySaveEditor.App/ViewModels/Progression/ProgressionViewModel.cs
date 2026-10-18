@@ -96,21 +96,20 @@ public sealed partial class ProgressionViewModel : ObservableObject
         try
         {
             var progression = _document.Editor.Progression;
-            bool changed = false;
             if (InventorySlots is { } inv && (int)inv != progression.InventorySlots)
             {
+                int before = progression.InventorySlots;
                 progression.SetInventorySlots((int)inv);
                 Log.Insert(0, $"Inventory slots set to {(int)inv}.");
-                changed = true;
+                _document.RecordChange($"Inventory slots {before} → {(int)inv}");
             }
             if (HandSlots is { } hands && (int)hands != progression.ArmEquipmentSlots)
             {
+                int before = progression.ArmEquipmentSlots;
                 progression.SetArmEquipmentSlots((int)hands);
                 Log.Insert(0, $"Hand slots set to {(int)hands}.");
-                changed = true;
+                _document.RecordChange($"Hand slots {before} → {(int)hands}");
             }
-            if (changed)
-                _document.MarkDirty();
         }
         catch (InvalidOperationException ex)
         {
@@ -142,13 +141,14 @@ public sealed partial class ProgressionViewModel : ObservableObject
             }
             row.IsPurchased = true;
             row.IsChecked = false;
-            Log.Insert(0, $"{row.Name}: {string.Join(", ", result.Applied.DefaultIfEmpty("unlocked"))}");
+            var applied = string.Join(", ", result.Applied.DefaultIfEmpty("unlocked"));
+            Log.Insert(0, $"{row.Name}: {applied}");
+            _document.RecordChange($"Unlocked {row.TypeLabel.ToLowerInvariant()} \"{row.Name}\" ({applied})");
             foreach (var kind in result.Skipped)
                 skipped[kind] = skipped.GetValueOrDefault(kind) + 1;
         }
         foreach (var (kind, count) in skipped)
             Log.Insert(0, $"Not applied ({count}×): {DescribeSkipped(kind)}");
-        _document.MarkDirty();
         RefreshSummary();
     }
 

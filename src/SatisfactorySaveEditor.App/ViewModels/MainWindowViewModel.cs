@@ -111,6 +111,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private async Task SaveToAsync(string path)
     {
+        if (Document!.Changes.Count > 0 && !await _dialogs.ConfirmSaveAsync(Path.GetFileName(path), Document.Changes))
+            return;
         await RunBusyAsync($"Saving {Path.GetFileName(path)}…", async () =>
         {
             var backup = await Document!.SaveAsync(path);
