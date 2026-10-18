@@ -6,3 +6,4 @@ riderModule.iml
 *.DotSettings.user
 # Test results (CI and local dotnet test --results-directory)
 TestResults/
+.idea/
