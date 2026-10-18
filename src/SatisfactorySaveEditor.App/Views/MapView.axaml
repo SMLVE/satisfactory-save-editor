@@ -47,16 +47,50 @@
         </StackPanel>
       </StackPanel>
       <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
-                 Text="Scroll to zoom, drag to pan, click a marker to inspect it." />
+                 Text="Scroll to zoom, drag to pan, click a marker to inspect it, Shift+drag to select an area." />
       <controls:MapControl x:Name="Map" Markers="{Binding VisibleMarkers}" SelectedMarker="{Binding SelectedMarker}"
-                           Lines="{Binding VisibleLines}" Structures="{Binding VisibleStructures}" />
+                           Lines="{Binding VisibleLines}" Structures="{Binding VisibleStructures}"
+                           BoxMarkers="{Binding BoxMarkers}" BoxStructures="{Binding BoxStructures}" />
     </DockPanel>
 
     <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
 
     <Panel Grid.Column="2" Margin="8,0,0,0">
-      <TextBlock Text="Click a marker on the map." Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
-                 IsVisible="{Binding !HasSelection}" />
+      <TextBlock Text="Click a marker on the map, or Shift+drag to select an area." Classes="muted"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding ShowNothingSelected}" />
+
+      <!-- Box selection -->
+      <DockPanel IsVisible="{Binding HasBoxSelection}">
+        <StackPanel DockPanel.Dock="Top" Spacing="8">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBlock Text="Selection" Classes="heading" />
+            <Button Grid.Column="1" Content="Delete selected…" Command="{Binding DeleteBoxSelectionCommand}" />
+            <Button Grid.Column="2" Content="Clear" Command="{Binding ClearBoxSelectionCommand}" />
+          </Grid>
+
+          <StackPanel Spacing="6" IsVisible="{Binding BoxHasStructures}">
+            <TextBlock Text="Move foundations &amp; walls (metres; 8 m = one foundation)" FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox Text="{Binding MoveX}" Width="80" Watermark="X" />
+              <TextBox Text="{Binding MoveY}" Width="80" Watermark="Y" />
+              <TextBox Text="{Binding MoveZ}" Width="80" Watermark="Z (up)" />
+              <Button Content="Move" Command="{Binding MoveStructuresCommand}" />
+            </StackPanel>
+            <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                       Text="Only foundations, walls, ramps and walkways move. Machines, belts and other buildings stay where they are." />
+          </StackPanel>
+          <TextBlock Text="{Binding BoxMessage}" TextWrapping="Wrap" Classes.error="{Binding BoxMessageIsError}"
+                     IsVisible="{Binding BoxMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          <TextBlock Text="Selected" FontWeight="SemiBold" />
+        </StackPanel>
+        <ListBox ItemsSource="{Binding BoxSummary}" FontSize="12">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Text="{Binding}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
 
       <DockPanel IsVisible="{Binding HasSelection}">
         <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,10" IsVisible="{Binding Player, Converter={x:Static ObjectConverters.IsNull}}">

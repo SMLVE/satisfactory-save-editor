@@ -16,16 +16,21 @@ public sealed record ClearedReference(SaveObject Owner, string Description, Acti
 /// </summary>
 public sealed class DeletionPlan
 {
-    internal DeletionPlan(ActorObject target) => Target = target;
+    internal DeletionPlan(IReadOnlyList<ActorObject> targets) => Targets = targets;
 
-    public ActorObject Target { get; }
+    /// <summary>The actors the user asked to delete.</summary>
+    public IReadOnlyList<ActorObject> Targets { get; }
+    public ActorObject Target => Targets[0];
     public string? BlockedReason { get; internal set; }
     public bool CanDelete => BlockedReason is null;
     public List<SaveObject> ObjectsToRemove { get; } = [];
     public List<ClearedReference> ReferencesToClear { get; } = [];
+    /// <summary>Selected actors left out because they can't be deleted (players, map-placed objects).</summary>
+    public List<(ActorObject Actor, string Reason)> Skipped { get; } = [];
 
-    /// <summary>Removed objects other than the target and its own components (e.g. attached power lines).</summary>
-    public IEnumerable<ActorObject> AlsoDeleted => ObjectsToRemove.OfType<ActorObject>().Where(a => a != Target);
+    /// <summary>Removed actors other than the targets (e.g. attached power lines, conveyor chains).</summary>
+    public IEnumerable<ActorObject> AlsoDeleted =>
+        ObjectsToRemove.OfType<ActorObject>().Where(a => !Targets.Contains(a) && !Skipped.Any(s => s.Actor == a));
 
     public int ComponentCount => ObjectsToRemove.Count(o => o is ComponentObject);
 }
@@ -48,27 +53,52 @@ public sealed class DeletionService(SaveEditor editor)
     private static bool IsCascade(ActorObject actor) =>
         CascadeClasses.Contains(actor.ClassName) || actor.Trailing is ConveyorChainTrailing;
 
-    public DeletionPlan Plan(ActorObject target)
-    {
-        var plan = new DeletionPlan(target);
-        if (target.ClassName == "Char_Player_C")
-            return Block(plan, "Players can't be deleted.");
-        if (target.WasPlacedInLevel != 0)
-            return Block(plan, "This object is part of the map itself. Removing it from the save would make the game recreate it.");
+    public DeletionPlan Plan(ActorObject target) => Plan([target]);
 
-        var actors = new List<ActorObject> { target };
-        var removed = new HashSet<SaveObject>();
-        for (int i = 0; i < actors.Count; i++)
+    /// <summary>
+    /// Plans deleting several actors at once. Actors that can't be deleted are listed in
+    /// <see cref="DeletionPlan.Skipped"/>; with a single target the plan is blocked instead.
+    /// </summary>
+    public DeletionPlan Plan(IReadOnlyList<ActorObject> targets)
+    {
+        var plan = new DeletionPlan(targets);
+        var deletable = new List<ActorObject>();
+        foreach (var target in targets.Distinct())
         {
-            foreach (var obj in OwnedBy(actors[i]))
-                removed.Add(obj);
-            // Cascade into sidecars that point at anything removed so far.
-            var names = NamesOf(removed);
-            foreach (var other in editor.Save.Body.AllObjects.OfType<ActorObject>())
+            if (RefusalReason(target) is { } reason)
+                plan.Skipped.Add((target, reason));
+            else
+                deletable.Add(target);
+        }
+        if (deletable.Count == 0)
+            return Block(plan, targets.Count == 1 ? plan.Skipped[0].Reason : "None of the selected objects can be deleted.");
+
+        var componentsByOwner = editor.Save.Body.AllObjects.OfType<ComponentObject>()
+            .Where(c => c.ParentActorName is not null)
+            .GroupBy(c => c.ParentActorName!)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Remove the targets and their components, then cascade into sidecars (power lines, conveyor chains,
+        // vehicle identifiers) that point at anything removed, round by round until nothing new is added.
+        var actors = new HashSet<ActorObject>();
+        var removed = new HashSet<SaveObject>();
+        var frontier = deletable;
+        while (frontier.Count > 0)
+        {
+            foreach (var actor in frontier)
             {
-                if (!removed.Contains(other) && IsCascade(other) && !actors.Contains(other) && Mentions(other, names))
-                    actors.Add(other);
+                actors.Add(actor);
+                removed.Add(actor);
+                foreach (var component in componentsByOwner.GetValueOrDefault(actor.InstanceName ?? "", []))
+                    removed.Add(component);
+                foreach (var reference in actor.Components)
+                    if (editor.Find(reference.PathName) is { } component)
+                        removed.Add(component);
             }
+            var names = NamesOf(removed);
+            frontier = editor.Save.Body.AllObjects.OfType<ActorObject>()
+                .Where(other => !actors.Contains(other) && IsCascade(other) && Mentions(other, names))
+                .ToList();
         }
 
         var removedNames = NamesOf(removed);
@@ -110,15 +140,12 @@ public sealed class DeletionService(SaveEditor editor)
         return plan;
     }
 
-    /// <summary>The actor plus every component that belongs to it.</summary>
-    private IEnumerable<SaveObject> OwnedBy(ActorObject actor)
+    private static string? RefusalReason(ActorObject actor) => actor switch
     {
-        yield return actor;
-        var componentNames = actor.Components.Select(c => c.PathName).ToHashSet();
-        foreach (var obj in editor.Save.Body.AllObjects.OfType<ComponentObject>())
-            if (obj.ParentActorName == actor.InstanceName || componentNames.Contains(obj.InstanceName))
-                yield return obj;
-    }
+        { ClassName: "Char_Player_C" } => "Players can't be deleted.",
+        { WasPlacedInLevel: not 0 } => "This object is part of the map itself. Removing it from the save would make the game recreate it.",
+        _ => null,
+    };
 
     private static HashSet<string> NamesOf(IEnumerable<SaveObject> objects) =>
         objects.Select(o => o.InstanceName).OfType<string>().ToHashSet();

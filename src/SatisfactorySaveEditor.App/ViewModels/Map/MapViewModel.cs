@@ -59,7 +59,96 @@ public sealed partial class MapViewModel : ObservableObject
     }
 
     private readonly IReadOnlyList<MapLine> _powerLines;
-    private readonly IReadOnlyList<Structure> _structures;
+    private IReadOnlyList<Structure> _structures;
+
+    // ---- Box selection (Shift+drag) ----
+
+    private static readonly IReadOnlySet<MapMarker> NoMarkers = new HashSet<MapMarker>();
+    private static readonly IReadOnlySet<Structure> NoStructures = new HashSet<Structure>();
+    private bool _selectingBox;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBoxSelection), nameof(BoxSummary), nameof(BoxHasStructures), nameof(ShowNothingSelected))]
+    private IReadOnlySet<MapMarker> _boxMarkers = NoMarkers;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBoxSelection), nameof(BoxSummary), nameof(BoxHasStructures), nameof(ShowNothingSelected))]
+    private IReadOnlySet<Structure> _boxStructures = NoStructures;
+
+    [ObservableProperty] private string _moveX = "0";
+    [ObservableProperty] private string _moveY = "0";
+    [ObservableProperty] private string _moveZ = "0";
+    [ObservableProperty] private string? _boxMessage;
+    [ObservableProperty] private bool _boxMessageIsError;
+
+    public bool HasBoxSelection => BoxMarkers.Count + BoxStructures.Count > 0;
+    public bool BoxHasStructures => BoxStructures.Count > 0;
+
+    /// <summary>Selected objects counted by type, e.g. "120 × Foundation 8x4 01".</summary>
+    public IReadOnlyList<string> BoxSummary =>
+        BoxStructures.GroupBy(s => s.TypeName).Select(g => (g.Key, Count: g.Count()))
+            .Concat(BoxMarkers.GroupBy(m => m.Label).Select(g => (g.Key, Count: g.Count())))
+            .OrderByDescending(g => g.Count)
+            .Select(g => $"{g.Count:N0} × {g.Key}")
+            .ToList();
+
+    /// <summary>Selects every visible marker and structure inside a world rectangle (from a Shift+drag).</summary>
+    public void SelectBox(System.Numerics.Vector2 min, System.Numerics.Vector2 max)
+    {
+        bool Inside(System.Numerics.Vector3 p) => p.X >= min.X && p.X <= max.X && p.Y >= min.Y && p.Y <= max.Y;
+        BoxMarkers = VisibleMarkers.Where(m => m.Path is { } path ? path.Any(Inside) : Inside(m.Position)).ToHashSet();
+        BoxStructures = VisibleStructures.Where(s => Inside(s.Position)).ToHashSet();
+        BoxMessage = null;
+        _selectingBox = true;
+        SelectedMarker = null;
+        _selectingBox = false;
+    }
+
+    [RelayCommand]
+    private void ClearBoxSelection()
+    {
+        BoxMarkers = NoMarkers;
+        BoxStructures = NoStructures;
+        BoxMessage = null;
+    }
+
+    /// <summary>Deletes the whole box selection after one summarized preview. The map rebuilds afterwards.</summary>
+    [RelayCommand]
+    private Task DeleteBoxSelectionAsync() =>
+        DeleteWorkflow.RunSelectionAsync(_document, _dialogs, BoxMarkers.Select(m => m.Actor).ToList(), BoxStructures.ToList());
+
+    /// <summary>
+    /// Moves the selected foundations/walls by an offset in metres. Buildings are not moved: their belts
+    /// and wires would be left behind.
+    /// </summary>
+    [RelayCommand]
+    private void MoveStructures()
+    {
+        if (!TryMetres(MoveX, out float x) || !TryMetres(MoveY, out float y) || !TryMetres(MoveZ, out float z))
+        {
+            BoxMessage = "Offsets must be numbers (metres).";
+            BoxMessageIsError = true;
+            return;
+        }
+        if (x == 0 && y == 0 && z == 0)
+            return;
+        var selected = BoxStructures.ToList();
+        _document.Editor.Structures.Move(selected, new System.Numerics.Vector3(x * 100, y * 100, z * 100));
+        _document.RecordChange(string.Create(CultureInfo.InvariantCulture,
+            $"Moved {selected.Count} foundations/walls by ({x:0.##}, {y:0.##}, {z:0.##}) m"));
+
+        // Re-read structures (positions changed) and keep the same instances selected.
+        var instances = selected.Select(s => s.Instance).ToHashSet();
+        _structures = _document.Editor.Structures.All;
+        VisibleStructures = ShowStructures ? _structures : [];
+        BoxStructures = _structures.Where(s => instances.Contains(s.Instance)).ToHashSet();
+        BoxMessage = string.Create(CultureInfo.InvariantCulture, $"Moved {selected.Count} by ({x:0.##}, {y:0.##}, {z:0.##}) m.")
+                     + (BoxMarkers.Count > 0 ? $" {BoxMarkers.Count} selected buildings were not moved." : "");
+        BoxMessageIsError = false;
+    }
+
+    private static bool TryMetres(string text, out float value) =>
+        float.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && float.IsFinite(value);
 
     public string StructuresLabel { get; }
     public IBrush StructuresBrush => MapControl.StructureBrush;
@@ -105,7 +194,7 @@ public sealed partial class MapViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection), nameof(Title), nameof(Subtitle), nameof(HasNoInventory),
-        nameof(PowerConnections), nameof(HasPowerConnections), nameof(BeltContents), nameof(IsBelt))]
+        nameof(PowerConnections), nameof(HasPowerConnections), nameof(BeltContents), nameof(IsBelt), nameof(ShowNothingSelected))]
     private MapMarker? _selectedMarker;
 
     /// <summary>Editor for the selected player (health, position, inventories).</summary>
@@ -114,6 +203,7 @@ public sealed partial class MapViewModel : ObservableObject
     [ObservableProperty] private InventoryEditorViewModel? _inventory;
 
     public bool HasSelection => SelectedMarker is not null;
+    public bool ShowNothingSelected => !HasSelection && !HasBoxSelection;
     public bool HasNoInventory => SelectedMarker is { Player: null, Container: null } && !IsBelt;
     public string Title => SelectedMarker?.Label ?? "";
 
@@ -145,6 +235,9 @@ public sealed partial class MapViewModel : ObservableObject
 
     partial void OnSelectedMarkerChanged(MapMarker? value)
     {
+        // Clicking a single object replaces a box selection.
+        if (value is not null && !_selectingBox && HasBoxSelection)
+            ClearBoxSelection();
         Player = value?.Player is { } player ? new PlayerViewModel(player, _document, _items) : null;
         Inventory = value?.Container is { } container
             ? new InventoryEditorViewModel(

@@ -47,6 +47,20 @@ public sealed class MapControl : Control
     private static readonly IPen PowerLinePen = new Pen(PowerLineBrush, 1);
     private static readonly IPen SelectedLinePen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 2.5);
 
+    public static readonly StyledProperty<IReadOnlySet<MapMarker>?> BoxMarkersProperty =
+        AvaloniaProperty.Register<MapControl, IReadOnlySet<MapMarker>?>(nameof(BoxMarkers));
+
+    public static readonly StyledProperty<IReadOnlySet<Structure>?> BoxStructuresProperty =
+        AvaloniaProperty.Register<MapControl, IReadOnlySet<Structure>?>(nameof(BoxStructures));
+
+    /// <summary>Raised when the user finishes a Shift+drag box; the rectangle is in world units (cm).</summary>
+    public event EventHandler<(Vector2 Min, Vector2 Max)>? BoxSelected;
+
+    private static readonly IBrush BoxFill = new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xD7, 0x00));
+    private static readonly IPen BoxPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 1.5, new DashStyle([4, 3], 0));
+    private static readonly IBrush SelectedStructureBrush = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xC4, 0x00));
+    private static readonly IPen SelectedMarkerPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 2);
+
     private static readonly IPen ConveyorPen = new Pen(new SolidColorBrush(Color.FromArgb(0xD0, 0x4F, 0xC9, 0xB8)), 1.5);
     private static readonly IPen SelectedPathPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 3.5);
 
@@ -81,11 +95,13 @@ public sealed class MapControl : Control
     private Point? _pressPoint;
     private Point _lastPoint;
     private bool _dragging;
+    private bool _boxing;
     private MapMarker? _hover;
 
     static MapControl()
     {
-        AffectsRender<MapControl>(MarkersProperty, SelectedMarkerProperty, LinesProperty, StructuresProperty);
+        AffectsRender<MapControl>(MarkersProperty, SelectedMarkerProperty, LinesProperty, StructuresProperty,
+            BoxMarkersProperty, BoxStructuresProperty);
         FocusableProperty.OverrideDefaultValue<MapControl>(true);
         ClipToBoundsProperty.OverrideDefaultValue<MapControl>(true);
     }
@@ -100,6 +116,20 @@ public sealed class MapControl : Control
     {
         get => GetValue(SelectedMarkerProperty);
         set => SetValue(SelectedMarkerProperty, value);
+    }
+
+    /// <summary>Markers in the current box selection (highlighted).</summary>
+    public IReadOnlySet<MapMarker>? BoxMarkers
+    {
+        get => GetValue(BoxMarkersProperty);
+        set => SetValue(BoxMarkersProperty, value);
+    }
+
+    /// <summary>Structures in the current box selection (highlighted).</summary>
+    public IReadOnlySet<Structure>? BoxStructures
+    {
+        get => GetValue(BoxStructuresProperty);
+        set => SetValue(BoxStructuresProperty, value);
     }
 
     /// <summary>Foundations, walls and ramps drawn as footprints beneath everything else.</summary>
@@ -189,6 +219,8 @@ public sealed class MapControl : Control
                 labels.Add((marker, p));
         }
 
+        DrawBoxSelection(context, bounds);
+
         if (SelectedMarker is { } selected)
         {
             if (selected.Path is { } selectedPath)
@@ -270,21 +302,61 @@ public sealed class MapControl : Control
                     context.FillRectangle(brush, new Rect(p.X - 1, p.Y - 1, 2, 2));
                 continue;
             }
+            DrawFootprint(context, s, p, w, d, brush);
+        }
+    }
 
-            // Most structures are rotated in 90° steps: draw them axis-aligned, swapping sides on odd quarters.
-            double quarter = s.Yaw / (Math.PI / 2);
-            double nearest = Math.Round(quarter);
-            if (Math.Abs(quarter - nearest) < 0.01)
+    private static void DrawFootprint(DrawingContext context, Structure s, Point p, double w, double d, IBrush brush)
+    {
+        // Most structures are rotated in 90° steps: draw them axis-aligned, swapping sides on odd quarters.
+        double quarter = s.Yaw / (Math.PI / 2);
+        double nearest = Math.Round(quarter);
+        if (Math.Abs(quarter - nearest) < 0.01)
+        {
+            bool swap = ((long)nearest & 1) != 0;
+            double rw = swap ? d : w, rd = swap ? w : d;
+            context.FillRectangle(brush, new Rect(p.X - rw / 2, p.Y - rd / 2, rw, rd));
+        }
+        else
+        {
+            using (context.PushTransform(Matrix.CreateRotation(s.Yaw) * Matrix.CreateTranslation(p.X, p.Y)))
+                context.FillRectangle(brush, new Rect(-w / 2, -d / 2, w, d));
+        }
+    }
+
+    /// <summary>Highlights the box selection: gold footprints for structures, gold outlines for markers and belts.</summary>
+    private void DrawBoxSelection(DrawingContext context, Rect bounds)
+    {
+        if (BoxStructures is { Count: > 0 } structures)
+        {
+            foreach (var s in structures)
             {
-                bool swap = ((long)nearest & 1) != 0;
-                double rw = swap ? d : w, rd = swap ? w : d;
-                context.FillRectangle(brush, new Rect(p.X - rw / 2, p.Y - rd / 2, rw, rd));
+                var p = WorldToScreen(s.Position);
+                if (p.X < -50 || p.Y < -50 || p.X > bounds.Width + 50 || p.Y > bounds.Height + 50)
+                    continue;
+                DrawFootprint(context, s, p, Math.Max(s.Width * _scale, 2), Math.Max(s.Depth * _scale, 2), SelectedStructureBrush);
             }
-            else
+        }
+        if (BoxMarkers is { Count: > 0 } markers)
+        {
+            foreach (var m in markers)
             {
-                using (context.PushTransform(Matrix.CreateRotation(s.Yaw) * Matrix.CreateTranslation(p.X, p.Y)))
-                    context.FillRectangle(brush, new Rect(-w / 2, -d / 2, w, d));
+                if (m.Path is { } path)
+                {
+                    for (int i = 1; i < path.Count; i++)
+                        context.DrawLine(SelectedMarkerPen, WorldToScreen(path[i - 1]), WorldToScreen(path[i]));
+                    continue;
+                }
+                var p = WorldToScreen(m.Position);
+                if (p.X >= -10 && p.Y >= -10 && p.X <= bounds.Width + 10 && p.Y <= bounds.Height + 10)
+                    context.DrawEllipse(null, SelectedMarkerPen, p, 5, 5);
             }
+        }
+        if (_boxing && _pressPoint is { } start)
+        {
+            var rect = new Rect(start, _lastPoint).Normalize();
+            context.FillRectangle(BoxFill, rect);
+            context.DrawRectangle(BoxPen, rect);
         }
     }
 
@@ -363,6 +435,7 @@ public sealed class MapControl : Control
             return;
         _pressPoint = _lastPoint = e.GetPosition(this);
         _dragging = false;
+        _boxing = e.KeyModifiers.HasFlag(KeyModifiers.Shift); // Shift+drag selects a box instead of panning
         e.Pointer.Capture(this);
         Focus();
     }
@@ -377,7 +450,8 @@ public sealed class MapControl : Control
                 _dragging = true;
             if (_dragging)
             {
-                _origin += p - _lastPoint;
+                if (!_boxing)
+                    _origin += p - _lastPoint;
                 _lastPoint = p;
                 InvalidateVisual();
             }
@@ -394,13 +468,24 @@ public sealed class MapControl : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        if (_pressPoint is null)
+        if (_pressPoint is not { } press)
             return;
-        if (!_dragging)
-            SelectedMarker = HitTest(e.GetPosition(this));
+        var end = e.GetPosition(this);
+        if (_boxing && _dragging)
+        {
+            var a = ScreenToWorld(press);
+            var b = ScreenToWorld(end);
+            BoxSelected?.Invoke(this, (Vector2.Min(a, b), Vector2.Max(a, b)));
+        }
+        else if (!_dragging)
+        {
+            SelectedMarker = HitTest(end);
+        }
         _pressPoint = null;
         _dragging = false;
+        _boxing = false;
         e.Pointer.Capture(null);
+        InvalidateVisual();
     }
 
     protected override void OnPointerExited(PointerEventArgs e)

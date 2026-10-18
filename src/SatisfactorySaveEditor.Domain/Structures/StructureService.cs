@@ -12,7 +12,7 @@ public enum StructureKind { Foundation, Ramp, Wall, Walkway, Stairs, Other }
 /// Width runs along the structure's local X axis, depth along local Y, both in centimetres.
 /// </summary>
 public sealed record Structure(StructureKind Kind, string ClassName, Vector3 Position, float Yaw, float Width, float Depth,
-    LightweightInstance Instance)
+    LightweightInstance Instance, LightweightClass Class)
 {
     public string TypeName => ContainerService.FriendlyClassName(ClassName);
 }
@@ -39,12 +39,40 @@ public sealed partial class StructureService(SaveEditor editor)
                     var p = instance.Position;
                     var s = instance.Scale;
                     structures.Add(new Structure(kind, cls.ClassName, new Vector3((float)p.X, (float)p.Y, (float)p.Z),
-                        (float)instance.Rotation.Yaw, width * (float)s.X, depth * (float)s.Y, instance));
+                        (float)instance.Rotation.Yaw, width * (float)s.X, depth * (float)s.Y, instance, cls));
                 }
             }
             return structures;
         }
     }
+
+    /// <summary>
+    /// Removes structures. Classes left without instances are dropped, as the game does not write empty ones.
+    /// Lightweight buildables are not referenced by other objects, so nothing else needs cleaning up.
+    /// </summary>
+    public int Delete(IEnumerable<Structure> structures)
+    {
+        var data = Data() ?? throw new InvalidOperationException("This save's foundations and walls could not be read.");
+        int removed = 0;
+        foreach (var structure in structures)
+            if (structure.Class.Instances.Remove(structure.Instance))
+                removed++;
+        data.Classes.RemoveAll(c => c.Instances.Count == 0);
+        return removed;
+    }
+
+    /// <summary>Moves structures by an offset in centimetres (world axes; Z is up).</summary>
+    public void Move(IEnumerable<Structure> structures, Vector3 offset)
+    {
+        foreach (var instance in structures.Select(s => s.Instance).Distinct())
+        {
+            var p = instance.Position;
+            instance.Position = new DVector3(p.X + offset.X, p.Y + offset.Y, p.Z + offset.Z);
+        }
+    }
+
+    private LightweightBuildablesTrailing? Data() =>
+        editor.OfClass("FGLightweightBuildableSubsystem").FirstOrDefault()?.Trailing as LightweightBuildablesTrailing;
 
     /// <summary>True when the save's lightweight buildables could not be decoded (they stay raw and unseen).</summary>
     public bool IsUndecoded =>
