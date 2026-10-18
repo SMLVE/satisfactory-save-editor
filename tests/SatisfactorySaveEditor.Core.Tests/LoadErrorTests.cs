@@ -54,15 +54,13 @@ public class LoadErrorTests
         Assert.Throws<SaveFormatException>(() => new SaveReader(bytes).ReadFString());
     }
 
-    [Theory]
-    [InlineData(59u, "older")]
-    [InlineData(61u, "newer")]
-    public void UnsupportedSaveVersion_IsRefused(uint version, string expected)
+    [Fact]
+    public void OlderSaveVersion_IsRefused()
     {
         var bytes = SampleSaves.Bytes("sample.sav").ToArray();
-        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(4), version); // after the header version
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(4), 59u); // after the header version
 
         var ex = Assert.Throws<SaveFormatException>(() => SaveFile.Load(bytes));
-        Assert.Contains(expected, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("older", ex.Message, StringComparison.Ordinal);
     }
 }

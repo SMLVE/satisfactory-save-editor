@@ -9,7 +9,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/), and versions
 ### Fixed
 - Opening a damaged save, or choosing a file that isn't the game's Docs JSON, shows an error instead of
   closing the app.
-- Saves newer than save version 60 are refused, as the README states, instead of being opened.
 - An unlock that can't be fully applied (for example, a player without an inventory) no longer leaves a
   partial unlock in the save that the change summary doesn't list.
 

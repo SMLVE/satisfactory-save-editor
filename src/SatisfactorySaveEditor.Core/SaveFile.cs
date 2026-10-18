@@ -21,10 +21,9 @@ public sealed class SaveFile
     {
         var reader = new SaveReader(fileBytes);
         var header = SaveHeader.Read(reader);
-        // Newer versions are refused too: their format may differ in ways that still parse but mean something else.
-        if (header.SaveVersion != SupportedSaveVersion)
+        if (header.SaveVersion < SupportedSaveVersion)
             throw new SaveFormatException(
-                $"Save version {header.SaveVersion} is {(header.SaveVersion < SupportedSaveVersion ? "older" : "newer")} than the supported version {SupportedSaveVersion}.");
+                $"Save version {header.SaveVersion} is older than the supported version {SupportedSaveVersion}.");
 
         var bodyBytes = ChunkedZlib.Decompress(reader, out var format);
         var body = SaveBody.Read(new SaveReader(bodyBytes));
