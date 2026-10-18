@@ -1,3 +1,4 @@
+using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SatisfactorySaveEditor.App.Services;
@@ -80,8 +81,22 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public bool HasDocument => Document is not null;
 
     public string Title => Document is null
-        ? "Satisfactory Save Editor"
-        : $"{Document.FileName}{(Document.IsDirty ? " •" : "")} — Satisfactory Save Editor";
+        ? AppName
+        : $"{Document.FileName}{(Document.IsDirty ? " •" : "")} — {AppName}";
+
+    /// <summary>"Satisfactory Save Editor 0.1.0", from the version in Directory.Build.props.</summary>
+    public static string AppName { get; } = $"Satisfactory Save Editor {AppVersion}";
+
+    private static string AppVersion
+    {
+        get
+        {
+            var informational = typeof(MainWindowViewModel).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
+            int plus = informational.IndexOf('+'); // drop the "+<commit>" suffix the SDK appends
+            return plus >= 0 ? informational[..plus] : informational;
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
     private async Task OpenAsync()
