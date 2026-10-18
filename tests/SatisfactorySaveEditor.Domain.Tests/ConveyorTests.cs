@@ -11,8 +11,8 @@ public class ConveyorTests
         var editor = TestEditors.Open("sample2.sav");
         var actors = editor.Save.Body.AllObjects.OfType<ActorObject>().ToList();
 
-        Assert.All(actors.Where(a => a.ClassName.StartsWith("FGConveyorChainActor")), a => Assert.IsType<ConveyorChainTrailing>(a.Trailing));
-        Assert.All(actors.Where(a => a.ClassName.StartsWith("Build_ConveyorBelt")), a => Assert.IsType<ConveyorItemsTrailing>(a.Trailing));
+        Assert.All(actors.Where(a => a.ClassName.StartsWith("FGConveyorChainActor", StringComparison.Ordinal)), a => Assert.IsType<ConveyorChainTrailing>(a.Trailing));
+        Assert.All(actors.Where(a => a.ClassName.StartsWith("Build_ConveyorBelt", StringComparison.Ordinal)), a => Assert.IsType<ConveyorItemsTrailing>(a.Trailing));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class ConveyorTests
     {
         var editor = TestEditors.Open("sample2.sav");
         var chainActor = editor.Save.Body.AllObjects.OfType<ActorObject>().First(a => a.ClassName == "FGConveyorChainActor"
-            && a.InstanceName!.EndsWith("_2147473568"));
+            && a.InstanceName!.EndsWith("_2147473568", StringComparison.Ordinal));
         var chain = (ConveyorChainTrailing)chainActor.Trailing!;
 
         int onBelts = chain.Segments.Sum(s => editor.Conveyors.ContentsOf(editor.Find(s.Belt.PathName)!).Sum(c => c.Count));
@@ -46,7 +46,7 @@ public class ConveyorTests
         Assert.Equal(chain.Items.Count, onBelts);
         var firstBelt = editor.Find(chain.Segments[0].Belt.PathName)!;
         var coal = Assert.Single(editor.Conveyors.ContentsOf(firstBelt));
-        Assert.EndsWith("Desc_Coal_C", coal.ItemClass);
+        Assert.EndsWith("Desc_Coal_C", coal.ItemClass, StringComparison.Ordinal);
         Assert.Equal(16, coal.Count); // item indices 0..15
     }
 }

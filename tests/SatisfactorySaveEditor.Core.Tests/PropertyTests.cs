@@ -29,7 +29,7 @@ public class PropertyTests
 
         Assert.Equal(50, stacks.Elements.Count);
         var (item, count) = Stack(stacks, 0);
-        Assert.EndsWith("Desc_IronPlate_C", item.ItemClass);
+        Assert.EndsWith("Desc_IronPlate_C", item.ItemClass, StringComparison.Ordinal);
         Assert.Equal(10, count.Value);
     }
 
@@ -62,7 +62,7 @@ public class PropertyTests
         emptyItem.ItemClass = "/Game/FactoryGame/Resource/Parts/Motor/Desc_Motor.Desc_Motor_C";
         emptyCount.Value = 25;
         var sizes = save.Body.PersistentLevel.Objects
-            .First(o => o.InstanceName!.EndsWith("Char_Player_C_0.inventory"))
+            .First(o => o.InstanceName!.EndsWith("Char_Player_C_0.inventory", StringComparison.Ordinal))
             .Properties.Get<ArrayValue>("mArbitrarySlotSizes")!;
         sizes.Elements.Add(new IntValue(7));
 
@@ -73,7 +73,7 @@ public class PropertyTests
         Assert.Equal("/Game/FactoryGame/Resource/Parts/Motor/Desc_Motor.Desc_Motor_C", item.ItemClass);
         Assert.Equal(25, count.Value);
         var reloadedSizes = reloaded.Body.PersistentLevel.Objects
-            .First(o => o.InstanceName!.EndsWith("Char_Player_C_0.inventory"))
+            .First(o => o.InstanceName!.EndsWith("Char_Player_C_0.inventory", StringComparison.Ordinal))
             .Properties.Get<ArrayValue>("mArbitrarySlotSizes")!;
         Assert.Equal(51, reloadedSizes.Elements.Count);
         Assert.All(reloaded.Body.AllObjects, o => Assert.True(o.IsParsed || o.RawData.Length == 0, o.ParseError));
@@ -82,7 +82,7 @@ public class PropertyTests
 
     private static ArrayValue PlayerInventoryStacks(SaveFile save) =>
         save.Body.PersistentLevel.Objects
-            .First(o => o.InstanceName!.EndsWith("Char_Player_C_0.inventory"))
+            .First(o => o.InstanceName!.EndsWith("Char_Player_C_0.inventory", StringComparison.Ordinal))
             .Properties.Get<ArrayValue>("mInventoryStacks")!;
 
     private static (InventoryItemStruct Item, IntValue Count) Stack(ArrayValue stacks, int index)

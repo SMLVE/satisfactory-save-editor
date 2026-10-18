@@ -4,7 +4,7 @@ using SatisfactorySaveEditor.App.ViewModels;
 
 namespace SatisfactorySaveEditor.App.Views;
 
-public partial class MainWindow : Window
+internal sealed partial class MainWindow : Window
 {
     private bool _closeConfirmed;
 

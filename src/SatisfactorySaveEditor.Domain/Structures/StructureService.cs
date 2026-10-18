@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using SatisfactorySaveEditor.Core.Trailing;
@@ -67,6 +68,7 @@ public sealed partial class StructureService(SaveEditor editor)
     }
 
     /// <summary>Moves structures by an offset in centimetres (world axes; Z is up).</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Part of the instance API alongside the other structure edits.")]
     public void Move(IEnumerable<Structure> structures, Vector3 offset)
     {
         foreach (var instance in structures.Select(s => s.Instance).Distinct())
@@ -107,13 +109,13 @@ public sealed partial class StructureService(SaveEditor editor)
 
     public static StructureKind KindOf(string className) => className switch
     {
-        _ when className.Contains("Beam") => StructureKind.Beam,
-        _ when className.Contains("Pillar") => StructureKind.Pillar,
-        _ when className.Contains("Foundation") => StructureKind.Foundation,
-        _ when className.Contains("Ramp") && !className.Contains("Walkway") => StructureKind.Ramp,
-        _ when className.Contains("Wall") => StructureKind.Wall,
-        _ when className.Contains("Walkway") => StructureKind.Walkway,
-        _ when className.Contains("Stair") => StructureKind.Stairs,
+        _ when className.Contains("Beam", StringComparison.Ordinal) => StructureKind.Beam,
+        _ when className.Contains("Pillar", StringComparison.Ordinal) => StructureKind.Pillar,
+        _ when className.Contains("Foundation", StringComparison.Ordinal) => StructureKind.Foundation,
+        _ when className.Contains("Ramp", StringComparison.Ordinal) && !className.Contains("Walkway", StringComparison.Ordinal) => StructureKind.Ramp,
+        _ when className.Contains("Wall", StringComparison.Ordinal) => StructureKind.Wall,
+        _ when className.Contains("Walkway", StringComparison.Ordinal) => StructureKind.Walkway,
+        _ when className.Contains("Stair", StringComparison.Ordinal) => StructureKind.Stairs,
         _ => StructureKind.Other,
     };
 
@@ -124,12 +126,12 @@ public sealed partial class StructureService(SaveEditor editor)
     public static (float Width, float Depth) Footprint(StructureKind kind, string className)
     {
         var match = SizeRegex().Match(className);
-        float width = match.Success ? int.Parse(match.Groups[1].Value) * 100f : 400f;
+        float width = match.Success ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) * 100f : 400f;
         return kind switch
         {
             StructureKind.Foundation or StructureKind.Ramp => (width, width),
             StructureKind.Wall => (width, WallThickness),
-            StructureKind.Pillar => className.Contains("Small") ? (100f, 100f) : (200f, 200f),
+            StructureKind.Pillar => className.Contains("Small", StringComparison.Ordinal) ? (100f, 100f) : (200f, 200f),
             _ => (400f, 400f),
         };
     }

@@ -7,7 +7,7 @@ using SatisfactorySaveEditor.Domain.Explorer;
 
 namespace SatisfactorySaveEditor.App.ViewModels.Explorer;
 
-public sealed record ObjectItem(SaveObject Object, string Level)
+internal sealed record ObjectItem(SaveObject Object, string Level)
 {
     public string ClassName => Object.ClassName;
     /// <summary>Instance name without the "Persistent_Level:PersistentLevel." prefix.</summary>
@@ -16,13 +16,13 @@ public sealed record ObjectItem(SaveObject Object, string Level)
         get
         {
             var name = Object.InstanceName ?? "";
-            int dot = name.IndexOf('.');
+            int dot = name.IndexOf('.', StringComparison.Ordinal);
             return dot >= 0 ? name[(dot + 1)..] : name;
         }
     }
 }
 
-public sealed record ClassFilter(string? ClassName, int Count)
+internal sealed record ClassFilter(string? ClassName, int Count)
 {
     public override string ToString() => ClassName is null ? $"All classes ({Count:N0})" : $"{ClassName} ({Count:N0})";
 }
@@ -31,7 +31,7 @@ public sealed record ClassFilter(string? ClassName, int Count)
 /// Generic property explorer: a searchable object list, the selected object's property tree and an
 /// editor for the selected node.
 /// </summary>
-public sealed partial class ExplorerViewModel : ObservableObject
+internal sealed partial class ExplorerViewModel : ObservableObject
 {
     private readonly SaveDocument _document;
     private readonly List<ObjectItem> _allObjects;

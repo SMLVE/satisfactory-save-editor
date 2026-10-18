@@ -20,7 +20,7 @@ public class ContainerTests
 
         var smelter = containers.First(c => c.Owner.ClassName == "Build_SmelterMk1_C");
         Assert.Equal(ContainerCategory.Machines, smelter.Category);
-        Assert.Equal(ContainerCategory.Logistics, containers.First(c => c.Owner.ClassName.Contains("Splitter")).Category);
+        Assert.Equal(ContainerCategory.Logistics, containers.First(c => c.Owner.ClassName.Contains("Splitter", StringComparison.Ordinal)).Category);
         Assert.Equal(ContainerCategory.World, containers.First(c => c.Owner.ClassName == "BP_DropPod_C").Category);
     }
 

@@ -42,11 +42,11 @@ public sealed class ProgressionService(SaveEditor editor)
     }
 
     public int InventorySlots =>
-        UnlockSubsystem.Properties.Get<IntValue>(MainInventoryBaseSlots)?.Value ?? editor.Players.All.FirstOrDefault()?.Inventory.Size ?? 0;
+        UnlockSubsystem.Properties.Get<IntValue>(MainInventoryBaseSlots)?.Value ?? (editor.Players.All is [var first, ..] ? first.Inventory.Size : 0);
 
     public int ArmEquipmentSlots =>
         UnlockSubsystem.Properties.Get<IntValue>(ArmSlotsProperty)?.Value
-        ?? editor.Players.All.FirstOrDefault()?.EquipmentSlots.GetValueOrDefault("Hands")?.Size ?? 1;
+        ?? (editor.Players.All is [var first, ..] ? first.EquipmentSlots.GetValueOrDefault("Hands")?.Size : null) ?? 1;
 
     /// <summary>Unlocks a schematic by class name (e.g. <c>Schematic_3-4_C</c>) or path. Requires game data.</summary>
     public UnlockResult Unlock(string schematicClassOrPath)
@@ -122,7 +122,7 @@ public sealed class ProgressionService(SaveEditor editor)
         UnlockSubsystem.Properties.GetOrAdd(ArmSlotsProperty, PropertyTypes.Int, () => new IntValue(0)).Value = total;
     }
 
-    private static IReadOnlyList<string> PathsIn(SaveObject obj, string property) =>
+    private static List<string> PathsIn(SaveObject obj, string property) =>
         obj.Properties.Get<ArrayValue>(property)?.Elements.OfType<ObjectValue>()
             .Select(v => v.Value.PathName).OfType<string>().ToList() ?? [];
 

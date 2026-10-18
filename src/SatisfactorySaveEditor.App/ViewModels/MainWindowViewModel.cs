@@ -11,7 +11,7 @@ using SatisfactorySaveEditor.Core;
 
 namespace SatisfactorySaveEditor.App.ViewModels;
 
-public sealed partial class MainWindowViewModel : ObservableObject
+internal sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly IDialogService _dialogs;
     private readonly GameDataStore _gameData = new();
@@ -93,7 +93,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             var informational = typeof(MainWindowViewModel).Assembly
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
-            int plus = informational.IndexOf('+'); // drop the "+<commit>" suffix the SDK appends
+            int plus = informational.IndexOf('+', StringComparison.Ordinal); // drop the "+<commit>" suffix the SDK appends
             return plus >= 0 ? informational[..plus] : informational;
         }
     }
@@ -190,6 +190,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031", Justification = "Game data is optional; any load failure is reported in the status bar instead of crashing.")]
     private async Task LoadGameDataAsync()
     {
         try

@@ -44,7 +44,7 @@ public static partial class GameDataLocator
         if (!File.Exists(vdf))
             yield break;
         foreach (Match m in VdfPathRegex().Matches(File.ReadAllText(vdf)))
-            yield return m.Groups[1].Value.Replace(@"\\", @"\");
+            yield return m.Groups[1].Value.Replace(@"\\", @"\", StringComparison.Ordinal);
     }
 
     [GeneratedRegex("\"path\"\\s+\"([^\"]+)\"")]

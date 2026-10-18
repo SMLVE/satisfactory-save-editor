@@ -4,7 +4,7 @@ using SatisfactorySaveEditor.App.ViewModels.Map;
 
 namespace SatisfactorySaveEditor.App.Views;
 
-public partial class MapView : UserControl
+internal sealed partial class MapView : UserControl
 {
     public MapView()
     {

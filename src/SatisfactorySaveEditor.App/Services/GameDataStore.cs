@@ -4,7 +4,7 @@ using SatisfactorySaveEditor.Domain.GameData;
 namespace SatisfactorySaveEditor.App.Services;
 
 /// <summary>Loads game data from the game install and remembers a manually chosen Docs JSON path.</summary>
-public sealed class GameDataStore
+internal sealed class GameDataStore
 {
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SatisfactorySaveEditor", "settings.json");

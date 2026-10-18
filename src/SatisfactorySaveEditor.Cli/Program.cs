@@ -1,3 +1,4 @@
+using System.Globalization;
 ﻿using System.Diagnostics;
 using SatisfactorySaveEditor.Core;
 using SatisfactorySaveEditor.Core.Compression;
@@ -87,8 +88,8 @@ switch (args[0])
         // dump <save> <class-or-instance-substring> [max objects]
         var save = SaveFile.Load(path);
         var filter = args.Length > 2 ? args[2] : "";
-        int max = args.Length > 3 ? int.Parse(args[3]) : 3;
-        foreach (var o in save.Body.AllObjects.Where(o => (o.TypePath ?? "").Contains(filter) || (o.InstanceName ?? "").Contains(filter)).Take(max))
+        int max = args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 3;
+        foreach (var o in save.Body.AllObjects.Where(o => (o.TypePath ?? "").Contains(filter, StringComparison.Ordinal) || (o.InstanceName ?? "").Contains(filter, StringComparison.Ordinal)).Take(max))
         {
             Console.WriteLine($"{o.TypePath}  {o.InstanceName}  (v{o.ObjectSaveVersion}{(o.UsesLegacyTags ? ", legacy tags" : "")})");
             if (o is ActorObject a)
@@ -196,7 +197,7 @@ switch (args[0])
             var hits = PropertyWalker.Descendants(o.Properties).OfType<ObjectValue>()
                 .Where(v => v.Value.PathName is { } p && owned.Contains(p)).Select(v => v.Value.PathName).ToList();
             var trailing = System.Text.Encoding.Latin1.GetString(o.TrailingData);
-            hits.AddRange(owned.Where(n => trailing.Contains(n)).Select(n => $"{n} (in trailing data)"));
+            hits.AddRange(owned.Where(n => trailing.Contains(n, StringComparison.Ordinal)).Select(n => $"{n} (in trailing data)"));
             var name = o.InstanceName ?? "";
             foreach (var h in hits.OfType<string>())
                 Console.WriteLine($"  {o.ClassName} {name[(name.LastIndexOf('.') + 1)..]} -> {h[(h.LastIndexOf('.') + 1)..]}");

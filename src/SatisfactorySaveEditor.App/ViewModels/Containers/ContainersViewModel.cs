@@ -7,12 +7,12 @@ using SatisfactorySaveEditor.Domain.Inventory;
 
 namespace SatisfactorySaveEditor.App.ViewModels.Containers;
 
-public sealed record CategoryFilter(string Label, ContainerCategory? Category, bool IsDepot = false)
+internal sealed record CategoryFilter(string Label, ContainerCategory? Category, bool IsDepot = false)
 {
     public override string ToString() => Label;
 }
 
-public sealed record ContainerRow(Container Container)
+internal sealed record ContainerRow(Container Container)
 {
     public string Title => Container.TypeName;
     public string Detail
@@ -30,7 +30,7 @@ public sealed record ContainerRow(Container Container)
 }
 
 /// <summary>Storage containers, vehicles, machines and world crates, each edited with the shared inventory editor.</summary>
-public sealed partial class ContainersViewModel : ObservableObject
+internal sealed partial class ContainersViewModel : ObservableObject
 {
     private readonly SaveDocument _document;
     private readonly IDialogService _dialogs;

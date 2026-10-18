@@ -51,7 +51,7 @@ public class SinkAndDepotTests
         var items = TestEditors.Open("sample3.sav").Depot.Items;
 
         Assert.Equal(3, items.Count);
-        var concrete = items.Single(i => i.ItemClass.EndsWith("Desc_Cement_C"));
+        var concrete = items.Single(i => i.ItemClass.EndsWith("Desc_Cement_C", StringComparison.Ordinal));
         Assert.Equal(58, concrete.Amount);
         Assert.Equal("Concrete", concrete.DisplayName);
     }
@@ -66,9 +66,9 @@ public class SinkAndDepotTests
         editor.Depot.Remove("/Game/FactoryGame/Resource/Parts/IronRod/Desc_IronRod.Desc_IronRod_C"); // remove
 
         var items = TestEditors.Reload(editor).Depot.Items;
-        Assert.Equal(500, items.Single(i => i.ItemClass.EndsWith("Desc_Cement_C")).Amount);
-        Assert.Equal(25, items.Single(i => i.ItemClass.EndsWith("Desc_Motor_C")).Amount);
-        Assert.DoesNotContain(items, i => i.ItemClass.EndsWith("Desc_IronRod_C"));
+        Assert.Equal(500, items.Single(i => i.ItemClass.EndsWith("Desc_Cement_C", StringComparison.Ordinal)).Amount);
+        Assert.Equal(25, items.Single(i => i.ItemClass.EndsWith("Desc_Motor_C", StringComparison.Ordinal)).Amount);
+        Assert.DoesNotContain(items, i => i.ItemClass.EndsWith("Desc_IronRod_C", StringComparison.Ordinal));
     }
 
     [Fact]

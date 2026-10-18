@@ -1,3 +1,4 @@
+using System.Globalization;
 using SatisfactorySaveEditor.Core.Model;
 
 namespace SatisfactorySaveEditor.Core.Properties;
@@ -5,17 +6,17 @@ namespace SatisfactorySaveEditor.Core.Properties;
 /// <summary>A property value or container element. Serialization lives in <see cref="PropertySerializer"/>.</summary>
 public abstract class PropertyValue;
 
-public sealed class IntValue(int value) : PropertyValue { public int Value { get; set; } = value; public override string ToString() => Value.ToString(); }
-public sealed class Int8Value(sbyte value) : PropertyValue { public sbyte Value { get; set; } = value; public override string ToString() => Value.ToString(); }
-public sealed class Int16Value(short value) : PropertyValue { public short Value { get; set; } = value; public override string ToString() => Value.ToString(); }
-public sealed class UInt16Value(ushort value) : PropertyValue { public ushort Value { get; set; } = value; public override string ToString() => Value.ToString(); }
-public sealed class UInt32Value(uint value) : PropertyValue { public uint Value { get; set; } = value; public override string ToString() => Value.ToString(); }
-public sealed class Int64Value(long value) : PropertyValue { public long Value { get; set; } = value; public override string ToString() => Value.ToString(); }
-public sealed class UInt64Value(ulong value) : PropertyValue { public ulong Value { get; set; } = value; public override string ToString() => Value.ToString(); }
-public sealed class FloatValue(float value) : PropertyValue { public float Value { get; set; } = value; public override string ToString() => Value.ToString("R"); }
-public sealed class DoubleValue(double value) : PropertyValue { public double Value { get; set; } = value; public override string ToString() => Value.ToString("R"); }
-public sealed class BoolValue(bool value) : PropertyValue { public bool Value { get; set; } = value; public override string ToString() => Value.ToString(); }
-public sealed class ByteValue(byte value) : PropertyValue { public byte Value { get; set; } = value; public override string ToString() => Value.ToString(); }
+public sealed class IntValue(int value) : PropertyValue { public int Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
+public sealed class Int8Value(sbyte value) : PropertyValue { public sbyte Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
+public sealed class Int16Value(short value) : PropertyValue { public short Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
+public sealed class UInt16Value(ushort value) : PropertyValue { public ushort Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
+public sealed class UInt32Value(uint value) : PropertyValue { public uint Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
+public sealed class Int64Value(long value) : PropertyValue { public long Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
+public sealed class UInt64Value(ulong value) : PropertyValue { public ulong Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
+public sealed class FloatValue(float value) : PropertyValue { public float Value { get; set; } = value; public override string ToString() => Value.ToString("R", CultureInfo.InvariantCulture); }
+public sealed class DoubleValue(double value) : PropertyValue { public double Value { get; set; } = value; public override string ToString() => Value.ToString("R", CultureInfo.InvariantCulture); }
+public sealed class BoolValue(bool value) : PropertyValue { public bool Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
+public sealed class ByteValue(byte value) : PropertyValue { public byte Value { get; set; } = value; public override string ToString() => Value.ToString(CultureInfo.InvariantCulture); }
 
 /// <summary>Str, Name and Enum values (and enum-typed ByteProperty values), all stored as FStrings.</summary>
 public sealed class StringValue(string? value) : PropertyValue

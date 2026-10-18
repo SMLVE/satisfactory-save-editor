@@ -23,7 +23,7 @@ public class ValidationTests
         manager.Properties.Get<ArrayValue>("mPurchasedSchematics")!.Elements.Add(new IntValue(123456));
 
         var ex = Assert.Throws<SaveValidationException>(() => save.ToValidatedBytes());
-        Assert.Contains("SchematicManager", ex.Message);
+        Assert.Contains("SchematicManager", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

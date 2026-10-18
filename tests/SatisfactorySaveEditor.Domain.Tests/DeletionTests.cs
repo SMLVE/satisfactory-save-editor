@@ -25,7 +25,7 @@ public class DeletionTests
         Assert.Equal(objectsBefore - 9, reloaded.Save.Body.AllObjects.Count());
         Assert.Null(reloaded.Find(container.InstanceName));
         Assert.DoesNotContain(reloaded.Save.Body.AllObjects.OfType<ComponentObject>(), c => c.ParentActorName == container.InstanceName);
-        Assert.DoesNotContain(AllReferences(reloaded), r => r.StartsWith(container.InstanceName!));
+        Assert.DoesNotContain(AllReferences(reloaded), r => r.StartsWith(container.InstanceName!, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class DeletionTests
 
         var reloaded = TestEditors.Reload(editor);
         Assert.Null(reloaded.Find(constructor.InstanceName));
-        Assert.DoesNotContain(AllReferences(reloaded), r => r.StartsWith(constructor.InstanceName!));
+        Assert.DoesNotContain(AllReferences(reloaded), r => r.StartsWith(constructor.InstanceName!, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class DeletionTests
         editor.Deletion.Execute(plan);
         var reloaded = TestEditors.Reload(editor);
         Assert.Null(reloaded.Find(truck.InstanceName));
-        Assert.DoesNotContain(AllReferences(reloaded), r => r.StartsWith(truck.InstanceName!));
+        Assert.DoesNotContain(AllReferences(reloaded), r => r.StartsWith(truck.InstanceName!, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class DeletionTests
         var plan = editor.Deletion.Plan(actor);
 
         Assert.False(plan.CanDelete);
-        Assert.Contains(reasonFragment, plan.BlockedReason);
+        Assert.Contains(reasonFragment, plan.BlockedReason, StringComparison.Ordinal);
         Assert.Throws<InvalidOperationException>(() => editor.Deletion.Execute(plan));
     }
 

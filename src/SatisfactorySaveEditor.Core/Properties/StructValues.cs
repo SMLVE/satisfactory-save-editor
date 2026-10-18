@@ -71,7 +71,7 @@ public sealed class NativeStruct(NativeStructLayout layout) : StructValue(layout
                 NativeFieldKind.Float => r.ReadSingle(),
                 NativeFieldKind.Double => r.ReadDouble(),
                 NativeFieldKind.Guid => r.ReadGuid(),
-                _ => throw new ArgumentOutOfRangeException(),
+                _ => throw new ArgumentOutOfRangeException(nameof(r), "Unsupported native field kind."),
             };
         }
     }

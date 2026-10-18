@@ -3,6 +3,9 @@ using SatisfactorySaveEditor.Core.IO;
 
 namespace SatisfactorySaveEditor.Core.Compression;
 
+/// <summary>Opaque bytes between the archive marker and the size fields (max chunk size + compressor info).</summary>
+public sealed record ChunkFormat(uint MaxChunkSize, byte[] CompressorInfo);
+
 /// <summary>
 /// Unreal package-style chunked zlib stream used for the save body.
 /// Each chunk: magic, archive marker, max chunk size, compressor info, then sizes and zlib data.
@@ -12,9 +15,6 @@ public static class ChunkedZlib
     public const uint PackageSignature = 0x9E2A83C1;
     public const uint ArchiveV2Marker = 0x22222222;
     public const int DefaultMaxChunkSize = 128 * 1024;
-
-    /// <summary>Opaque bytes between the archive marker and the size fields (max chunk size + compressor info).</summary>
-    public sealed record ChunkFormat(uint MaxChunkSize, byte[] CompressorInfo);
 
     public static byte[] Decompress(SaveReader r, out ChunkFormat format)
     {

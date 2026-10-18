@@ -7,7 +7,7 @@ using SatisfactorySaveEditor.Domain.Inventory;
 
 namespace SatisfactorySaveEditor.App.ViewModels.Containers;
 
-public sealed partial class DepotRowViewModel(DepotItem item, Action<DepotRowViewModel> remove) : ObservableObject
+internal sealed partial class DepotRowViewModel(DepotItem item, Action<DepotRowViewModel> remove) : ObservableObject
 {
     public DepotItem Item { get; } = item;
     public string Name => Item.DisplayName;
@@ -21,7 +21,7 @@ public sealed partial class DepotRowViewModel(DepotItem item, Action<DepotRowVie
 }
 
 /// <summary>Editor for the Dimensional Depot's network storage (item amounts, not inventory slots).</summary>
-public sealed partial class DepotViewModel : ObservableObject
+internal sealed partial class DepotViewModel : ObservableObject
 {
     private readonly SaveDocument _document;
 

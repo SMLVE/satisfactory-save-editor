@@ -83,17 +83,17 @@ public sealed partial class GameData
                 string? path = PathFromFullName(Str(entry, "FullName")) ?? paths.GetValueOrDefault(className);
                 string name = Str(entry, "mDisplayName");
 
-                if (nativeClass.EndsWith("FGSchematic'"))
+                if (nativeClass.EndsWith("FGSchematic'", StringComparison.Ordinal))
                 {
                     schematics[className] = new SchematicInfo(className, path, name, Str(entry, "mType"),
                         int.TryParse(Str(entry, "mTechTier"), out int tier) ? tier : 0, ParseUnlocks(entry));
                 }
-                else if (nativeClass.EndsWith("FGRecipe'"))
+                else if (nativeClass.EndsWith("FGRecipe'", StringComparison.Ordinal))
                 {
                     recipes[className] = new RecipeInfo(className, path, name);
                 }
-                else if (entry.TryGetProperty("mStackSize", out _) && !nativeClass.Contains("BuildingDescriptor")
-                         && !nativeClass.Contains("VehicleDescriptor"))
+                else if (entry.TryGetProperty("mStackSize", out _) && !nativeClass.Contains("BuildingDescriptor", StringComparison.Ordinal)
+                         && !nativeClass.Contains("VehicleDescriptor", StringComparison.Ordinal))
                 {
                     int stack = int.TryParse(Str(entry, "mCachedStackSize"), out int cached) && cached > 0
                         ? cached
@@ -134,7 +134,7 @@ public sealed partial class GameData
                 if (field.Name == "Class" || field.Value.ValueKind != JsonValueKind.String)
                     continue;
                 string value = field.Value.GetString() ?? "";
-                if (field.Name.StartsWith("mNum") && int.TryParse(value, out int n))
+                if (field.Name.StartsWith("mNum", StringComparison.Ordinal) && int.TryParse(value, out int n))
                     amount = n;
                 else
                     unlockPaths.AddRange(AssetPathRegex().Matches(value).Select(m => m.Value));
@@ -150,7 +150,7 @@ public sealed partial class GameData
     /// <summary>"BlueprintGeneratedClass /Game/A/B.B_C" → "/Game/A/B.B_C".</summary>
     private static string? PathFromFullName(string fullName)
     {
-        int space = fullName.IndexOf(' ');
+        int space = fullName.IndexOf(' ', StringComparison.Ordinal);
         var path = space >= 0 ? fullName[(space + 1)..] : fullName;
         return path.StartsWith('/') ? path : null;
     }

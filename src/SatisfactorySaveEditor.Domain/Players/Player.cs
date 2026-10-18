@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Buffers.Binary;
 using System.Numerics;
 using SatisfactorySaveEditor.Core.Model;
@@ -12,7 +13,7 @@ public sealed record PlayerIdentity(byte Platform, byte[] Data)
 
     /// <summary>Steam ids are a little-endian SteamID64; other platforms are shown as hex.</summary>
     public string Id => Platform == 6 && Data.Length == 8
-        ? BinaryPrimitives.ReadUInt64LittleEndian(Data).ToString()
+        ? BinaryPrimitives.ReadUInt64LittleEndian(Data).ToString(CultureInfo.InvariantCulture)
         : Convert.ToHexString(Data);
 
     public override string ToString() => $"{PlatformName} {Id}";

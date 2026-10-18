@@ -13,7 +13,7 @@ using SatisfactorySaveEditor.Domain.Structures;
 namespace SatisfactorySaveEditor.App.ViewModels.Map;
 
 /// <summary>A layer toggle with its marker color and count.</summary>
-public sealed partial class MapLayer(MapMarkerKind kind, string label, int count, bool visible, Action changed) : ObservableObject
+internal sealed partial class MapLayer(MapMarkerKind kind, string label, int count, bool visible, Action changed) : ObservableObject
 {
     public MapMarkerKind Kind { get; } = kind;
     public string Label { get; } = $"{label} ({count:N0})";
@@ -24,7 +24,7 @@ public sealed partial class MapLayer(MapMarkerKind kind, string label, int count
     partial void OnIsVisibleChanged(bool value) => changed();
 }
 
-public sealed partial class MapViewModel : ObservableObject
+internal sealed partial class MapViewModel : ObservableObject
 {
     private readonly SaveDocument _document;
     private readonly IDialogService _dialogs;
@@ -114,7 +114,7 @@ public sealed partial class MapViewModel : ObservableObject
 
     /// <summary>Deletes the whole box selection after one summarized preview. The map rebuilds afterwards.</summary>
     [RelayCommand]
-    private Task DeleteBoxSelectionAsync() =>
+    private Task<bool> DeleteBoxSelectionAsync() =>
         DeleteWorkflow.RunSelectionAsync(_document, _dialogs, BoxMarkers.Select(m => m.Actor).ToList(), BoxStructures.ToList());
 
     /// <summary>
@@ -151,6 +151,7 @@ public sealed partial class MapViewModel : ObservableObject
         float.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && float.IsFinite(value);
 
     public string StructuresLabel { get; }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Bound from XAML, which needs an instance property.")]
     public IBrush StructuresBrush => MapControl.StructureBrush;
 
     [ObservableProperty] private bool _showStructures = true;
@@ -160,6 +161,7 @@ public sealed partial class MapViewModel : ObservableObject
 
     public IReadOnlyList<MapLayer> Layers { get; }
     public string PowerLinesLabel { get; }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Bound from XAML, which needs an instance property.")]
     public IBrush PowerLinesBrush => MapControl.PowerLineBrush;
 
     [ObservableProperty] private bool _showPowerLines = true;

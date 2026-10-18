@@ -1,0 +1,24 @@
+root = true
+
+[*.cs]
+# Nullable reference types already document non-null parameters.
+dotnet_diagnostic.CA1062.severity = none
+# The Avalonia app must resume on the UI thread; ConfigureAwait(false) would be wrong there.
+dotnet_diagnostic.CA2007.severity = none
+# Underscored test names are the convention here; the CLI is English-only.
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1303.severity = none
+# Core model types intentionally expose List<T>, arrays and settable collections.
+dotnet_diagnostic.CA1002.severity = none
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.CA2227.severity = none
+# Names mirror Unreal/save-format terminology.
+dotnet_diagnostic.CA1720.severity = none
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.CA1028.severity = none
+dotnet_diagnostic.CA1724.severity = none
+# ToLowerInvariant is only used for display text, not for normalizing comparison keys.
+dotnet_diagnostic.CA1308.severity = none
+# Views, controls and view models are instantiated by Avalonia (XAML/data templates), not by code.
+dotnet_diagnostic.CA1812.severity = none

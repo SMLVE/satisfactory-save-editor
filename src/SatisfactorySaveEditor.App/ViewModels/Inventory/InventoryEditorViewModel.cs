@@ -8,7 +8,7 @@ using SatisfactorySaveEditor.Domain.Inventory;
 namespace SatisfactorySaveEditor.App.ViewModels.Inventory;
 
 /// <summary>An item offered in the item picker; ToString drives AutoCompleteBox text matching.</summary>
-public sealed record ItemChoice(ItemInfo Info)
+internal sealed record ItemChoice(ItemInfo Info)
 {
     public override string ToString() => Info.DisplayName;
 
@@ -17,12 +17,12 @@ public sealed record ItemChoice(ItemInfo Info)
             .OrderBy(i => i.DisplayName).Select(i => new ItemChoice(i)).ToList() ?? [];
 }
 
-public sealed record InventoryChoice(string Name, Domain.Inventory.Inventory Inventory)
+internal sealed record InventoryChoice(string Name, Domain.Inventory.Inventory Inventory)
 {
     public override string ToString() => $"{Name} ({Inventory.Size} slots)";
 }
 
-public sealed record SlotViewModel(InventorySlot Slot)
+internal sealed record SlotViewModel(InventorySlot Slot)
 {
     public string Number => (Slot.Index + 1).ToString(CultureInfo.InvariantCulture);
     public string Name => Slot.IsEmpty ? "Empty" : Slot.DisplayName;
@@ -34,7 +34,7 @@ public sealed record SlotViewModel(InventorySlot Slot)
 /// Slot grid plus slot editor for one or more inventories of the same owner (a player, a container,
 /// a vehicle...). Edits are reported through <paramref name="recordChange"/> for the change log.
 /// </summary>
-public sealed partial class InventoryEditorViewModel : ObservableObject
+internal sealed partial class InventoryEditorViewModel : ObservableObject
 {
     private readonly Action<string> _recordChange;
 
@@ -44,7 +44,7 @@ public sealed partial class InventoryEditorViewModel : ObservableObject
         Inventories = inventories;
         Items = items;
         _recordChange = recordChange;
-        SelectedInventory = inventories.FirstOrDefault();
+        SelectedInventory = inventories is [var first, ..] ? first : null;
     }
 
     public IReadOnlyList<InventoryChoice> Inventories { get; }

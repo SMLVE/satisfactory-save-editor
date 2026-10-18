@@ -74,7 +74,7 @@ public class StructureTests
     {
         var editor = TestEditors.Open("sample3.sav");
 
-        var slot = editor.Players.All.Single().Inventory.Slots.Single(s => s.ItemClass?.EndsWith("Desc_ResourceSinkCoupon_C") == true);
+        var slot = editor.Players.All.Single().Inventory.Slots.Single(s => s.ItemClass?.EndsWith("Desc_ResourceSinkCoupon_C", StringComparison.Ordinal) == true);
 
         Assert.Equal("FICSIT Coupon", slot.DisplayName);
         Assert.Equal(100, slot.Count);

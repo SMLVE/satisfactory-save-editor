@@ -7,7 +7,7 @@ using SatisfactorySaveEditor.Domain.Structures;
 namespace SatisfactorySaveEditor.App.Services;
 
 /// <summary>Plans a deletion, shows what it will do (or why it is not possible), and applies it on confirmation.</summary>
-public static class DeleteWorkflow
+internal static class DeleteWorkflow
 {
     /// <summary>Returns true when the object was deleted.</summary>
     public static async Task<bool> RunAsync(SaveDocument document, IDialogService dialogs, ActorObject actor)

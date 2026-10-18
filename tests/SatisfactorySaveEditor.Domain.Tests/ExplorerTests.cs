@@ -15,7 +15,7 @@ public class ExplorerTests
         var nodes = ExplorerTree.ForObject(editor.Find("Persistent_Level:PersistentLevel.Char_Player_C_0")!);
 
         Assert.Equal("Transform", nodes[0].Name);
-        Assert.Contains(nodes, n => n.Name == "mInventory" && n.ValueText.EndsWith("Char_Player_C_0.inventory"));
+        Assert.Contains(nodes, n => n.Name == "mInventory" && n.ValueText.EndsWith("Char_Player_C_0.inventory", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class ExplorerTests
         var editor = TestEditors.Open("sample.sav");
         var recipes = Path(ExplorerTree.ForObject(editor.Single("FGRecipeManager"), TestEditors.GameData), "mAvailableRecipes");
 
-        Assert.Contains(recipes.Children, n => n.Hint == "Iron Plate" && n.ValueText.EndsWith("Recipe_IronPlate_C"));
+        Assert.Contains(recipes.Children, n => n.Hint == "Iron Plate" && n.ValueText.EndsWith("Recipe_IronPlate_C", StringComparison.Ordinal));
     }
 
     private static ExplorerNode Path(IReadOnlyList<ExplorerNode> nodes, params string[] names)

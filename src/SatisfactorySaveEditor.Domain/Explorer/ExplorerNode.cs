@@ -149,7 +149,7 @@ public sealed class ExplorerTree
     /// <summary>Display name of an item, recipe or schematic class path, when game data knows it.</summary>
     private string? DisplayNameOf(string? path)
     {
-        if (_gameData is null || string.IsNullOrEmpty(path) || !path.EndsWith("_C"))
+        if (_gameData is null || string.IsNullOrEmpty(path) || !path.EndsWith("_C", StringComparison.Ordinal))
             return null;
         string className = GameData.GameData.ClassNameOf(path);
         return _gameData.Items.GetValueOrDefault(className)?.DisplayName
@@ -157,7 +157,7 @@ public sealed class ExplorerTree
                ?? _gameData.Schematics.GetValueOrDefault(className)?.DisplayName;
     }
 
-    private IReadOnlyList<ExplorerNode> BuildObject(SaveObject obj)
+    private List<ExplorerNode> BuildObject(SaveObject obj)
     {
         var nodes = new List<ExplorerNode>();
         if (obj is ActorObject actor)
@@ -220,7 +220,7 @@ public sealed class ExplorerTree
         return nodes;
     }
 
-    private IReadOnlyList<ExplorerNode> BuildProperties(PropertyList properties) =>
+    private List<ExplorerNode> BuildProperties(PropertyList properties) =>
         properties.Select(p => ForValue(p.Tag.ArrayIndex == 0 ? p.Name ?? "?" : $"{p.Name}[{p.Tag.ArrayIndex}]",
             p.Type, p.Value)).ToList();
 
@@ -368,7 +368,7 @@ public sealed class ExplorerTree
 
     private static List<ExplorerNode> TextChildren(TextValue v)
     {
-        var children = new List<ExplorerNode> { Leaf("History", "int8", () => v.HistoryType.ToString()) };
+        var children = new List<ExplorerNode> { Leaf("History", "int8", () => v.HistoryType.ToString(CultureInfo.InvariantCulture)) };
         switch (v.HistoryType)
         {
             case TextValue.HistoryNone:

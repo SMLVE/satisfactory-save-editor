@@ -7,7 +7,7 @@ using SatisfactorySaveEditor.App.Views;
 
 namespace SatisfactorySaveEditor.App;
 
-public partial class App : Application
+internal sealed partial class App : Application
 {
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 

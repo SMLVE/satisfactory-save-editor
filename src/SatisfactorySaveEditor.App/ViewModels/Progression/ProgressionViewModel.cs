@@ -7,12 +7,12 @@ using SatisfactorySaveEditor.Domain.Progression;
 
 namespace SatisfactorySaveEditor.App.ViewModels.Progression;
 
-public sealed record SchematicTypeFilter(string Label, Func<SchematicInfo, bool> Matches)
+internal sealed record SchematicTypeFilter(string Label, Func<SchematicInfo, bool> Matches)
 {
     public override string ToString() => Label;
 }
 
-public sealed partial class SchematicRow(SchematicInfo info, bool isPurchased) : ObservableObject
+internal sealed partial class SchematicRow(SchematicInfo info, bool isPurchased) : ObservableObject
 {
     public SchematicInfo Info { get; } = info;
     public string Name => Info.DisplayName.Length > 0 ? Info.DisplayName : Info.ClassName;
@@ -28,7 +28,7 @@ public sealed partial class SchematicRow(SchematicInfo info, bool isPurchased) :
     public bool CanCheck => !IsPurchased;
 }
 
-public sealed partial class ProgressionViewModel : ObservableObject
+internal sealed partial class ProgressionViewModel : ObservableObject
 {
     private readonly SaveDocument _document;
     private readonly List<SchematicRow> _allRows = [];
@@ -172,7 +172,7 @@ public sealed partial class ProgressionViewModel : ObservableObject
         RefreshSummary();
     }
 
-    private void Unlock(IReadOnlyList<SchematicRow> rows)
+    private void Unlock(List<SchematicRow> rows)
     {
         Error = null;
         if (rows.Count == 0)

@@ -8,7 +8,7 @@ using SatisfactorySaveEditor.Domain.Players;
 
 namespace SatisfactorySaveEditor.App.ViewModels.Players;
 
-public sealed partial class PlayersViewModel : ObservableObject
+internal sealed partial class PlayersViewModel : ObservableObject
 {
     public PlayersViewModel(SaveDocument document, string? selectPlayer = null)
     {
@@ -16,7 +16,7 @@ public sealed partial class PlayersViewModel : ObservableObject
         HasGameData = document.Editor.GameData is not null;
         Players = document.Editor.Players.All.Select(p => new PlayerViewModel(p, document, items)).ToList();
         SelectedPlayer = Players.FirstOrDefault(p => p.Name == selectPlayer)
-                         ?? Players.FirstOrDefault(p => p.HasPawn) ?? Players.FirstOrDefault();
+                         ?? Players.FirstOrDefault(p => p.HasPawn) ?? (Players is [var first, ..] ? first : null);
     }
 
     public bool HasGameData { get; }
@@ -25,7 +25,7 @@ public sealed partial class PlayersViewModel : ObservableObject
     [ObservableProperty] private PlayerViewModel? _selectedPlayer;
 }
 
-public sealed partial class PlayerViewModel : ObservableObject
+internal sealed partial class PlayerViewModel : ObservableObject
 {
     private readonly Player _player;
     private readonly SaveDocument _document;

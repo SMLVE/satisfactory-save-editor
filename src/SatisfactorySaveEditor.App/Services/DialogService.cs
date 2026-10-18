@@ -4,7 +4,7 @@ using Avalonia.Platform.Storage;
 
 namespace SatisfactorySaveEditor.App.Services;
 
-public interface IDialogService
+internal interface IDialogService
 {
     Task<string?> PickSaveToOpenAsync();
     Task<string?> PickSaveDestinationAsync(string suggestedName);
@@ -18,7 +18,7 @@ public interface IDialogService
     Task<bool> ConfirmListAsync(string title, string message, IReadOnlyList<string> details, string confirmLabel);
 }
 
-public sealed class DialogService(Window owner) : IDialogService
+internal sealed class DialogService(Window owner) : IDialogService
 {
     private static readonly FilePickerFileType SaveFiles = new("Satisfactory saves") { Patterns = ["*.sav"] };
     private static readonly FilePickerFileType JsonFiles = new("Game Docs JSON") { Patterns = ["*.json"] };
@@ -35,7 +35,7 @@ public sealed class DialogService(Window owner) : IDialogService
             FileTypeFilter = [SaveFiles],
             SuggestedStartLocation = await StartFolder(SaveGamesFolder),
         });
-        return files.FirstOrDefault()?.TryGetLocalPath();
+        return files is [var first, ..] ? first.TryGetLocalPath() : null;
     }
 
     public async Task<string?> PickSaveDestinationAsync(string suggestedName)
@@ -58,7 +58,7 @@ public sealed class DialogService(Window owner) : IDialogService
             Title = "Locate the game's CommunityResources/Docs/en-US.json",
             FileTypeFilter = [JsonFiles],
         });
-        return files.FirstOrDefault()?.TryGetLocalPath();
+        return files is [var first, ..] ? first.TryGetLocalPath() : null;
     }
 
     public async Task ShowMessageAsync(string title, string message) =>

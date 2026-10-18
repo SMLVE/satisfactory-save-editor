@@ -26,7 +26,7 @@ public class MapTests
     {
         var markers = TestEditors.Open("sample2.sav").Map.Markers;
 
-        var belts = markers.Where(m => m.Actor.ClassName.StartsWith("Build_ConveyorBelt")).ToList();
+        var belts = markers.Where(m => m.Actor.ClassName.StartsWith("Build_ConveyorBelt", StringComparison.Ordinal)).ToList();
         Assert.Equal(5062, belts.Count);
         Assert.All(belts, b =>
         {
@@ -37,7 +37,7 @@ public class MapTests
         });
 
         // The belt inspected earlier: 4 spline points ending 2751 cm along X (rotation is identity).
-        var belt = belts.Single(b => b.Actor.InstanceName!.EndsWith(".Build_ConveyorBeltMk4_C_4306"));
+        var belt = belts.Single(b => b.Actor.InstanceName!.EndsWith(".Build_ConveyorBeltMk4_C_4306", StringComparison.Ordinal));
         var end = belt.Path![^1];
         Assert.Equal(belt.Actor.Position.X + 2751f, end.X, 0.5f);
         Assert.Equal(belt.Actor.Position.Y - 336.015625f, end.Y, 0.5f);

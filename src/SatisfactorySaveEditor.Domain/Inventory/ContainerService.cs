@@ -69,9 +69,9 @@ public sealed class ContainerService(SaveEditor editor)
     {
         if (VehicleMarkers.Any(className.Contains))
             return ContainerCategory.Vehicles;
-        if (className.Contains("ConveyorAttachment") || className.Contains("Pipeline"))
+        if (className.Contains("ConveyorAttachment", StringComparison.Ordinal) || className.Contains("Pipeline", StringComparison.Ordinal))
             return ContainerCategory.Logistics;
-        if (className.Contains("Storage") || className.Contains("Potty"))
+        if (className.Contains("Storage", StringComparison.Ordinal) || className.Contains("Potty", StringComparison.Ordinal))
             return ContainerCategory.Storage;
         if (className.StartsWith("Build_", StringComparison.OrdinalIgnoreCase))
             return ContainerCategory.Machines;
@@ -97,7 +97,7 @@ public sealed class ContainerService(SaveEditor editor)
                 words.Append(' ');
             words.Append(c);
         }
-        return words.ToString().Replace("  ", " ").Trim();
+        return words.ToString().Replace("  ", " ", StringComparison.Ordinal).Trim();
     }
 
     private static string InventoryName(ComponentObject component)

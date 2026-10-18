@@ -13,7 +13,7 @@ public sealed class SaveFile
 
     public required SaveHeader Header { get; init; }
     public required SaveBody Body { get; init; }
-    public required ChunkedZlib.ChunkFormat ChunkFormat { get; init; }
+    public required ChunkFormat ChunkFormat { get; init; }
 
     public static SaveFile Load(string path) => Load(File.ReadAllBytes(path));
 

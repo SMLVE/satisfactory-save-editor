@@ -1,6 +1,8 @@
 <Project>
-  <!-- Shared by every project in the repository. Bump on release and tag the commit (vX.Y.Z). -->
   <PropertyGroup>
     <Version>0.1.0</Version>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <AnalysisLevel>latest</AnalysisLevel>
   </PropertyGroup>
 </Project>

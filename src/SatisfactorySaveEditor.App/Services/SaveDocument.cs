@@ -4,7 +4,7 @@ using SatisfactorySaveEditor.Domain;
 namespace SatisfactorySaveEditor.App.Services;
 
 /// <summary>An open save: file path, parsed save, domain editor, unsaved-changes flag and change log.</summary>
-public sealed class SaveDocument
+internal sealed class SaveDocument
 {
     private SaveDocument(string path, SaveFile save, GameDataStore gameData)
     {

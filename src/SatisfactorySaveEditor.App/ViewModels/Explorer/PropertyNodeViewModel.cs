@@ -5,7 +5,7 @@ using SatisfactorySaveEditor.Domain.Explorer;
 namespace SatisfactorySaveEditor.App.ViewModels.Explorer;
 
 /// <summary>Tree item wrapping an <see cref="ExplorerNode"/>; children are created when first expanded.</summary>
-public sealed partial class PropertyNodeViewModel : ObservableObject
+internal sealed partial class PropertyNodeViewModel : ObservableObject
 {
     private static readonly PropertyNodeViewModel Placeholder = new();
     private bool _childrenLoaded;

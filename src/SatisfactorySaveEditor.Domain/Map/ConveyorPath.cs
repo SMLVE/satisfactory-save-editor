@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using SatisfactorySaveEditor.Core.Model;
 using SatisfactorySaveEditor.Core.Properties;
@@ -61,6 +62,6 @@ public static class ConveyorPath
 
     private static Vector3? VectorOf(PropertyListStruct point, string field) =>
         point.Properties.Get<NativeStruct>(field) is { } v
-            ? new Vector3(Convert.ToSingle(v["X"]), Convert.ToSingle(v["Y"]), Convert.ToSingle(v["Z"]))
+            ? new Vector3(Convert.ToSingle(v["X"], CultureInfo.InvariantCulture), Convert.ToSingle(v["Y"], CultureInfo.InvariantCulture), Convert.ToSingle(v["Z"], CultureInfo.InvariantCulture))
             : null;
 }

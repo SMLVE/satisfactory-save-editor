@@ -14,7 +14,7 @@ namespace SatisfactorySaveEditor.App.Controls;
 /// World X maps to screen X and world Y to screen Y; units are centimetres. Markers outside the view are
 /// culled and dense layers draw at most one marker per screen pixel cell, so tens of thousands stay fast.
 /// </summary>
-public sealed class MapControl : Control
+internal sealed class MapControl : Control
 {
     public static readonly StyledProperty<IReadOnlyList<MapMarker>?> MarkersProperty =
         AvaloniaProperty.Register<MapControl, IReadOnlyList<MapMarker>?>(nameof(Markers));
@@ -56,7 +56,7 @@ public sealed class MapControl : Control
         AvaloniaProperty.Register<MapControl, IReadOnlySet<Structure>?>(nameof(BoxStructures));
 
     /// <summary>Raised when the user finishes a Shift+drag box; the rectangle is in world units (cm).</summary>
-    public event EventHandler<(Vector2 Min, Vector2 Max)>? BoxSelected;
+    public event EventHandler<BoxSelectedEventArgs>? BoxSelected;
 
     private static readonly IBrush BoxFill = new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xD7, 0x00));
     private static readonly IPen BoxPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0xD7, 0x00)), 1.5, new DashStyle([4, 3], 0));
@@ -477,7 +477,7 @@ public sealed class MapControl : Control
         {
             var a = ScreenToWorld(press);
             var b = ScreenToWorld(end);
-            BoxSelected?.Invoke(this, (Vector2.Min(a, b), Vector2.Max(a, b)));
+            BoxSelected?.Invoke(this, new BoxSelectedEventArgs(Vector2.Min(a, b), Vector2.Max(a, b)));
         }
         else if (!_dragging)
         {

@@ -24,10 +24,10 @@ public class PowerTests
 
         var line = Assert.Single(editor.Power.LinesOf(constructor));
 
-        Assert.EndsWith("Build_PowerLine_C_1148", line.Line.InstanceName);
-        Assert.Contains("Constructor Mk1", line.Description);
+        Assert.EndsWith("Build_PowerLine_C_1148", line.Line.InstanceName, StringComparison.Ordinal);
+        Assert.Contains("Constructor Mk1", line.Description, StringComparison.Ordinal);
         var constructorEnd = line.SourceBuilding == constructor ? line.SourceConnection : line.TargetConnection;
-        Assert.EndsWith(".PowerInput", constructorEnd!.InstanceName);
+        Assert.EndsWith(".PowerInput", constructorEnd!.InstanceName, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class PowerTests
         var original = ends.Target;
 
         ends.Target = original with { PathName = original.PathName + "X" };
-        Assert.EndsWith("X\0", System.Text.Encoding.Latin1.GetString(line.TrailingData));
+        Assert.EndsWith("X\0", System.Text.Encoding.Latin1.GetString(line.TrailingData), StringComparison.Ordinal);
 
         ends.Target = original;
         var reloaded = TestEditors.Reload(editor);
