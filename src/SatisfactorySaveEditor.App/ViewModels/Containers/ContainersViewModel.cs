@@ -7,7 +7,7 @@ using SatisfactorySaveEditor.Domain.Inventory;
 
 namespace SatisfactorySaveEditor.App.ViewModels.Containers;
 
-public sealed record CategoryFilter(string Label, ContainerCategory? Category)
+public sealed record CategoryFilter(string Label, ContainerCategory? Category, bool IsDepot = false)
 {
     public override string ToString() => Label;
 }
@@ -51,8 +51,21 @@ public sealed partial class ContainersViewModel : ObservableObject
             new("Splitters & mergers", ContainerCategory.Logistics),
             new("Crates & drop pods", ContainerCategory.World),
             new("Everything", null),
+            new("Dimensional Depot (network storage)", null, IsDepot: true),
         ];
         SelectedFilter = Filters[0];
+    }
+
+    /// <summary>Editor for the Dimensional Depot, shown instead of the container list when that filter is picked.</summary>
+    [ObservableProperty] private DepotViewModel? _depot;
+
+    public bool ShowDepot => Depot is not null;
+    public bool ShowContainers => Depot is null;
+
+    partial void OnDepotChanged(DepotViewModel? value)
+    {
+        OnPropertyChanged(nameof(ShowDepot));
+        OnPropertyChanged(nameof(ShowContainers));
     }
 
     public IReadOnlyList<CategoryFilter> Filters { get; }
@@ -69,7 +82,11 @@ public sealed partial class ContainersViewModel : ObservableObject
     private Task DeleteSelectedAsync() =>
         SelectedRow is { } row ? DeleteWorkflow.RunAsync(_document, _dialogs, row.Container.Owner) : Task.CompletedTask;
 
-    partial void OnSelectedFilterChanged(CategoryFilter value) => ApplyFilter();
+    partial void OnSelectedFilterChanged(CategoryFilter value)
+    {
+        Depot = value.IsDepot ? new DepotViewModel(_document, _items) : null;
+        ApplyFilter();
+    }
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     partial void OnSelectedRowChanged(ContainerRow? value)
@@ -85,7 +102,8 @@ public sealed partial class ContainersViewModel : ObservableObject
     private void ApplyFilter()
     {
         var search = SearchText.Trim();
-        Rows = _all.Where(r => (SelectedFilter.Category is null || r.Container.Category == SelectedFilter.Category)
+        Rows = _all.Where(r => !SelectedFilter.IsDepot
+                               && (SelectedFilter.Category is null || r.Container.Category == SelectedFilter.Category)
                                && (search.Length == 0
                                    || r.Container.TypeName.Contains(search, StringComparison.OrdinalIgnoreCase)
                                    || r.Container.InstanceName.Contains(search, StringComparison.OrdinalIgnoreCase)

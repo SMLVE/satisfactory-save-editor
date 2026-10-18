@@ -31,6 +31,8 @@ public sealed class SaveEditor
         Power = new PowerService(this);
         Structures = new StructureService(this);
         Conveyors = new ConveyorService(this);
+        Sink = new SinkService(this);
+        Depot = new DepotService(this);
     }
 
     public SaveFile Save { get; }
@@ -43,6 +45,8 @@ public sealed class SaveEditor
     public PowerService Power { get; }
     public StructureService Structures { get; }
     public ConveyorService Conveyors { get; }
+    public SinkService Sink { get; }
+    public DepotService Depot { get; }
 
     /// <summary>Drops the instance-name index after objects were added or removed.</summary>
     internal void InvalidateIndex() => _byInstanceName = null;

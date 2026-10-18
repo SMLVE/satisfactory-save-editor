@@ -163,11 +163,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
             return true;
         var answer = await _dialogs.AskAsync("Unsaved changes",
             $"Save changes to {Document.FileName} first?", "Save", "Discard");
-        if (answer is null)
-            return false;
-        if (answer == true)
-            await SaveToAsync(Document.Path);
-        return !Document.IsDirty;
+        switch (answer)
+        {
+            case null: // Cancel
+                return false;
+            case false: // Discard: close/replace without saving
+                return true;
+            default: // Save: only continue if the save went through (it can be cancelled or refused)
+                await SaveToAsync(Document.Path);
+                return !Document.IsDirty;
+        }
     }
 
     private async Task LoadGameDataAsync()

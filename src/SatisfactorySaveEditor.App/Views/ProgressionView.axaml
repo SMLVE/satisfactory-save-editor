@@ -50,6 +50,22 @@
                    Text="Resizes every player's inventory. Shrinking only removes empty slots." />
       </StackPanel>
 
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+        <TextBlock Text="AWESOME Sink" Classes="heading" />
+        <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+          <TextBlock Text="Points" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1" Value="{Binding SinkPoints}" Minimum="0" Maximum="9000000000000000000" Increment="1000" FormatString="N0" />
+          <TextBlock Grid.Row="1" Text="DNA points" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding SinkDnaPoints}" Minimum="0" Maximum="9000000000000000000" Increment="1000" FormatString="N0" />
+          <TextBlock Grid.Row="2" Text="Coupons to print" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding SinkCoupons}" Minimum="0" Maximum="2000000000" Increment="1" FormatString="0" />
+        </Grid>
+        <Button Content="Apply sink" Command="{Binding ApplySinkCommand}" HorizontalAlignment="Right" />
+        <TextBlock Text="{Binding SinkLevels}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                   Text="Coupons to print are collected at the AWESOME Sink. Raising points makes the game award the coupons for the levels crossed." />
+      </StackPanel>
+
       <TextBlock DockPanel.Dock="Top" Text="Log" Classes="heading" Margin="0,0,0,6" />
       <ListBox ItemsSource="{Binding Log}">
         <ListBox.ItemTemplate>

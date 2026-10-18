@@ -55,11 +55,65 @@ public sealed partial class ProgressionViewModel : ObservableObject
         }
         SelectedFilter = TypeFilters[0]; // triggers the initial filter
         RefreshSummary();
+        LoadSink();
     }
 
-    /// <summary>Re-reads purchased state and slot counts (after edits made in other tabs).</summary>
+    // ---- AWESOME Sink ----
+
+    [ObservableProperty] private decimal? _sinkPoints;
+    [ObservableProperty] private decimal? _sinkDnaPoints;
+    [ObservableProperty] private decimal? _sinkCoupons;
+    [ObservableProperty] private string _sinkLevels = "";
+
+    private void LoadSink()
+    {
+        var sink = _document.Editor.Sink;
+        SinkPoints = sink.PointsOf(SinkTrack.Standard);
+        SinkDnaPoints = sink.PointsOf(SinkTrack.Dna);
+        SinkCoupons = sink.CouponsToPrint;
+        SinkLevels = $"Coupon levels reached: {sink.LevelOf(SinkTrack.Standard)} (standard), {sink.LevelOf(SinkTrack.Dna)} (DNA)";
+    }
+
+    [RelayCommand]
+    private void ApplySink()
+    {
+        Error = null;
+        var sink = _document.Editor.Sink;
+        try
+        {
+            if (SinkPoints is { } points && (long)points != sink.PointsOf(SinkTrack.Standard))
+            {
+                long before = sink.PointsOf(SinkTrack.Standard);
+                sink.SetPoints(SinkTrack.Standard, (long)points);
+                _document.RecordChange($"AWESOME Sink points {before:N0} → {(long)points:N0}");
+                Log.Insert(0, $"Sink points set to {(long)points:N0}.");
+            }
+            if (SinkDnaPoints is { } dna && (long)dna != sink.PointsOf(SinkTrack.Dna))
+            {
+                long before = sink.PointsOf(SinkTrack.Dna);
+                sink.SetPoints(SinkTrack.Dna, (long)dna);
+                _document.RecordChange($"AWESOME Sink DNA points {before:N0} → {(long)dna:N0}");
+                Log.Insert(0, $"Sink DNA points set to {(long)dna:N0}.");
+            }
+            if (SinkCoupons is { } coupons && (int)coupons != sink.CouponsToPrint)
+            {
+                int before = sink.CouponsToPrint;
+                sink.CouponsToPrint = (int)coupons;
+                _document.RecordChange($"Coupons to print {before} → {(int)coupons}");
+                Log.Insert(0, $"Coupons to print set to {(int)coupons}.");
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            Error = ex.Message;
+        }
+        LoadSink();
+    }
+
+    /// <summary>Re-reads purchased state, slot counts and sink values (after edits made in other tabs).</summary>
     public void Refresh()
     {
+        LoadSink();
         if (!HasGameData)
             return;
         var progression = _document.Editor.Progression;

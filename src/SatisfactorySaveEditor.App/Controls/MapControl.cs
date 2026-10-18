@@ -36,6 +36,8 @@ public sealed class MapControl : Control
         [StructureKind.Wall] = new SolidColorBrush(Color.FromArgb(0xD0, 0xA9, 0xB4, 0xC2)),
         [StructureKind.Walkway] = new SolidColorBrush(Color.FromArgb(0xA0, 0x7C, 0x6F, 0x5E)),
         [StructureKind.Stairs] = new SolidColorBrush(Color.FromArgb(0xA0, 0x7C, 0x6F, 0x5E)),
+        [StructureKind.Pillar] = new SolidColorBrush(Color.FromArgb(0xE0, 0xB8, 0xBF, 0xC8)),
+        [StructureKind.Beam] = new SolidColorBrush(Color.FromArgb(0xE0, 0xC9, 0x9B, 0x5A)),
         [StructureKind.Other] = new SolidColorBrush(Color.FromArgb(0xA0, 0x60, 0x60, 0x60)),
     };
 

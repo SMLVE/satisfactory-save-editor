@@ -7,7 +7,7 @@ namespace SatisfactorySaveEditor.Core.Tests;
 /// <summary>Locates and caches the sample saves in the repository's assets folder.</summary>
 public static class SampleSaves
 {
-    public static IEnumerable<object[]> All => [["sample.sav"], ["sample2.sav"]];
+    public static IEnumerable<object[]> All => [["sample.sav"], ["sample2.sav"], ["sample3.sav"]];
 
     private static readonly Dictionary<string, byte[]> Cache = [];
 

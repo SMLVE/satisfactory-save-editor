@@ -103,8 +103,21 @@ public sealed partial class GameData
             }
         }
 
+        foreach (var item in MissingFromDocs)
+            items.TryAdd(item.ClassName, item);
+
         return new GameData { Items = items, Recipes = recipes, Schematics = schematics };
     }
+
+    /// <summary>
+    /// Items that exist in saves but are not listed in the game's Docs JSON. Paths are taken from real saves.
+    /// </summary>
+    private static readonly ItemInfo[] MissingFromDocs =
+    [
+        new("Desc_ResourceSinkCoupon_C",
+            "/Game/FactoryGame/Resource/Parts/ResourceSinkCoupon/Desc_ResourceSinkCoupon.Desc_ResourceSinkCoupon_C",
+            "FICSIT Coupon", 500, "RF_SOLID"),
+    ];
 
     private static List<UnlockInfo> ParseUnlocks(JsonElement schematic)
     {

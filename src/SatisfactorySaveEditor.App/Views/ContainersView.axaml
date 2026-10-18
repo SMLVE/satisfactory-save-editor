@@ -9,12 +9,12 @@
     <DockPanel>
       <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,6">
         <ComboBox ItemsSource="{Binding Filters}" SelectedItem="{Binding SelectedFilter}" HorizontalAlignment="Stretch" />
-        <TextBox Text="{Binding SearchText}" Watermark="Search by type, name or item inside…" />
-        <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="12" />
+        <TextBox Text="{Binding SearchText}" Watermark="Search by type, name or item inside…" IsVisible="{Binding ShowContainers}" />
+        <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="12" IsVisible="{Binding ShowContainers}" />
       </StackPanel>
-      <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0"
-                 Text="The Dimensional Depot is not editable yet: its contents use a format not seen in your saves so far." />
-      <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}">
+      <TextBlock DockPanel.Dock="Bottom" Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" IsVisible="{Binding ShowDepot}"
+                 Text="The network storage shared by all Dimensional Depots. Each depot building's own input buffer is listed under Storage as Central Storage." />
+      <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}" IsVisible="{Binding ShowContainers}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ContainerRow">
             <StackPanel Spacing="1">
@@ -28,7 +28,8 @@
 
     <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
 
-    <Panel Grid.Column="2" Margin="8,0,0,0">
+    <!-- Container inventories -->
+    <Panel Grid.Column="2" Margin="8,0,0,0" IsVisible="{Binding ShowContainers}">
       <TextBlock Text="Select a container." Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
                  IsVisible="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNull}}" />
       <DockPanel IsVisible="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}">
@@ -40,6 +41,37 @@
           <TextBlock Text="{Binding SelectedRow.Detail, FallbackValue=''}" Classes="muted" FontSize="12" />
         </StackPanel>
         <views:InventoryEditorView DataContext="{Binding Inventory}" />
+      </DockPanel>
+    </Panel>
+
+    <!-- Dimensional Depot network storage -->
+    <Panel Grid.Column="2" Margin="8,0,0,0" IsVisible="{Binding ShowDepot}">
+      <DockPanel DataContext="{Binding Depot}" x:DataType="vm:DepotViewModel">
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,10">
+          <TextBlock Text="Dimensional Depot" Classes="heading" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <AutoCompleteBox ItemsSource="{Binding Items}" SelectedItem="{Binding NewItem}" Width="280"
+                             FilterMode="Contains" MinimumPrefixLength="1" Watermark="Add an item…" />
+            <NumericUpDown Value="{Binding NewAmount}" Minimum="1" Maximum="2000000000" Increment="100" FormatString="N0" Width="150" />
+            <Button Content="Add" Command="{Binding AddCommand}" />
+          </StackPanel>
+          <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Classes.error="{Binding MessageIsError}"
+                     IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          <TextBlock Text="The depot is empty." Classes="muted" IsVisible="{Binding IsEmpty}" />
+        </StackPanel>
+        <Button DockPanel.Dock="Bottom" Content="Apply amounts" Command="{Binding ApplyAmountsCommand}"
+                HorizontalAlignment="Right" Margin="0,8,0,0" />
+        <ListBox ItemsSource="{Binding Rows}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:DepotRowViewModel">
+              <Grid ColumnDefinitions="*,160,Auto" ColumnSpacing="8">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Column="1" Value="{Binding Amount}" Minimum="0" Maximum="2000000000" Increment="100" FormatString="N0" />
+                <Button Grid.Column="2" Content="Remove" Command="{Binding RemoveCommand}" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
       </DockPanel>
     </Panel>
   </Grid>
