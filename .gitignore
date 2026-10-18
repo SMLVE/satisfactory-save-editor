@@ -4,3 +4,5 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 *.DotSettings.user
+# Test results (CI and local dotnet test --results-directory)
+TestResults/
