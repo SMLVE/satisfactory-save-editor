@@ -8,6 +8,7 @@ using SatisfactorySaveEditor.App.ViewModels.Map;
 using SatisfactorySaveEditor.App.ViewModels.Players;
 using SatisfactorySaveEditor.App.ViewModels.Progression;
 using SatisfactorySaveEditor.Core;
+using SatisfactorySaveEditor.Domain.GameData;
 
 namespace SatisfactorySaveEditor.App.ViewModels;
 
@@ -226,7 +227,7 @@ internal sealed partial class MainWindowViewModel : ObservableObject
         {
             await work();
         }
-        catch (Exception ex) when (ex is SaveFormatException or SaveValidationException or IOException
+        catch (Exception ex) when (ex is SaveFormatException or SaveValidationException or GameDataException or IOException
                                        or UnauthorizedAccessException or InvalidOperationException)
         {
             Status = previous;

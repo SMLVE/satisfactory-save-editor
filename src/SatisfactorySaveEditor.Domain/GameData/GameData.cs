@@ -59,7 +59,21 @@ public sealed partial class GameData
 
     public static GameData Load(string docsJsonPath) => Parse(File.ReadAllText(docsJsonPath));
 
+    /// <exception cref="GameDataException">The text is not valid JSON or does not have the Docs JSON layout.</exception>
     public static GameData Parse(string json)
+    {
+        try
+        {
+            return ParseDocs(json);
+        }
+        // JsonDocument throws these for invalid JSON, missing properties and values of the wrong kind.
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            throw new GameDataException($"This is not the game's Docs JSON: {ex.Message}", ex);
+        }
+    }
+
+    private static GameData ParseDocs(string json)
     {
         using var doc = JsonDocument.Parse(json);
 

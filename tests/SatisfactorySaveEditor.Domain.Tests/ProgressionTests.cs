@@ -1,3 +1,4 @@
+using SatisfactorySaveEditor.Core.Model;
 using SatisfactorySaveEditor.Core.Properties;
 
 namespace SatisfactorySaveEditor.Domain.Tests;
@@ -50,6 +51,36 @@ public class ProgressionTests
         Assert.Equal(3, player.EquipmentSlots["Hands"].Size);
         var unlockSubsystem = reloaded.Single("BP_UnlockSubsystem_C");
         Assert.True(unlockSubsystem.Properties.Get<BoolValue>("mIsMapUnlocked")!.Value);
+    }
+
+    [Fact]
+    public void Unlock_EffectThatCannotApply_LeavesSaveUnchanged()
+    {
+        var editor = TestEditors.Open("sample.sav");
+        // A hand-slot inventory with no slots can't be grown. The upgrade schematic first grows the main
+        // inventory, then the hand slots: neither the purchase nor the earlier effect may be written.
+        editor.Players.All.Single().EquipmentSlots["Hands"].Component.Properties
+            .Get<ArrayValue>("mInventoryStacks")!.Elements.Clear();
+        var before = editor.Save.SerializeBody();
+
+        Assert.Throws<InvalidOperationException>(() => editor.Progression.Unlock("Schematic_Test_Upgrades_C"));
+
+        Assert.Equal(before, editor.Save.SerializeBody());
+        Assert.False(editor.Progression.IsPurchased("Schematic_Test_Upgrades_C"));
+        Assert.Equal(27, editor.Players.All.Single().Inventory.Size);
+    }
+
+    [Fact]
+    public void Unlock_PlayerWithoutInventory_LeavesSaveUnchanged()
+    {
+        var editor = TestEditors.Open("sample.sav");
+        editor.Players.All.Single().Pawn!.Properties.Get<ObjectValue>("mInventory")!.Value = ObjectReference.Empty;
+        var before = editor.Save.SerializeBody();
+
+        Assert.Throws<InvalidOperationException>(() => editor.Progression.Unlock("Schematic_Test_Upgrades_C"));
+
+        Assert.Equal(before, editor.Save.SerializeBody());
+        Assert.False(editor.Progression.IsPurchased("Schematic_Test_Upgrades_C"));
     }
 
     [Fact]

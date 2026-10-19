@@ -28,7 +28,7 @@ public sealed class SaveReader
 
     private ReadOnlySpan<byte> Take(int count)
     {
-        if (count < 0 || Position + count > _end)
+        if (count < 0 || count > Remaining)
             throw new SaveFormatException($"Attempted to read {count} bytes at offset {Position}, but only {Remaining} remain.");
         var span = new ReadOnlySpan<byte>(_buffer, Position, count);
         Position += count;
@@ -65,6 +65,9 @@ public sealed class SaveReader
             var bytes = Take(length);
             return Encoding.Latin1.GetString(bytes[..^1]);
         }
+        // int.MinValue cannot be negated; any length beyond the buffer is corrupt data.
+        if (length == int.MinValue || -length > Remaining / 2)
+            throw new SaveFormatException($"FString of {-(long)length} UTF-16 chars at offset {Position - 4} exceeds the remaining {Remaining} bytes.");
         int chars = -length;
         var utf16 = Take(chars * 2);
         return Encoding.Unicode.GetString(utf16[..^2]);

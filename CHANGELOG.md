@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/), and versions
 
 ## [Unreleased]
 
+### Fixed
+- Opening a damaged save, or choosing a file that isn't the game's Docs JSON, shows an error instead of
+  closing the app.
+- An unlock that can't be fully applied (for example, a player without an inventory) no longer leaves a
+  partial unlock in the save that the change summary doesn't list.
+
 ## [0.1.0] - 2026-10-18
 
 First public release.
